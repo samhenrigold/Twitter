@@ -75,9 +75,9 @@ package struct MainView: View {
             .environment(\.hasClassicSidebar, true)
             // Laid out for the width they'll have once the sidebar has settled (see `columnStripWidth`), so the columns
             // are placed once rather than chasing the sidebar frame by frame.
-            // Before the window is measured there's no width to give.
-            .frame(width: placement.stripWidth > 0 ? placement.stripWidth : nil)
-            .environment(\.columnStripWidth, placement.stripWidth)
+            // Before the window is measured (or while a measurement is out of range) there's no width to give.
+            .frame(width: placement.validStripWidth)
+            .environment(\.columnStripWidth, placement.validStripWidth)
             // Down past the home indicator, as a tab view is: the tabs keep their own content clear of it. The
             // sidebar keeps clear of it and of the camera itself.
             .ignoresSafeArea(.container, edges: .bottom)
@@ -115,7 +115,7 @@ package struct MainView: View {
         sidebar(placement)
             // Its own room is the side bar's safe area; it lays out across all of it.
             .ignoresSafeArea(.container, edges: placement.isInSystemSideBar ? .horizontal : [])
-            .frame(width: placement.width)
+            .frame(width: placement.width.isFinite ? max(placement.width, 0) : nil)
             // Nothing of the wider sidebar spills sideways over the tabs as it collapses; up and down it still reaches
             // under the status bar and home indicator.
             .mask { Rectangle().ignoresSafeArea(edges: .vertical) }
@@ -192,6 +192,11 @@ private struct SidebarPlacement: Equatable {
     var statusBarHeight: CGFloat = 0
     /// The width left for the tabs beside the sidebar.
     var stripWidth: CGFloat = 0
+
+    /// `stripWidth` where it's a usable frame width; `nil` before the window has a real size.
+    var validStripWidth: CGFloat? {
+        stripWidth.isFinite && stripWidth > 0 ? stripWidth : nil
+    }
     var width: CGFloat = 0
 
     /// - Parameter verticalBarEdge: Where iPhone Duo would put a vertical toolbar (`toolbarVerticalEdge`), if
@@ -216,11 +221,11 @@ private struct SidebarPlacement: Equatable {
             let sideBarWidth = inset > 0 ? inset : Self.collapsedWidth
             isExpanded = canExpand
             width = isExpanded ? max(Self.expandedWidth, sideBarWidth) : sideBarWidth
-            stripWidth = geometry.width + inset - width
+            stripWidth = max(geometry.width + inset - width, 0)
         } else {
             isExpanded = canExpand
             width = isExpanded ? Self.expandedWidth : Self.collapsedWidth
-            stripWidth = geometry.width - width
+            stripWidth = max(geometry.width - width, 0)
         }
     }
 }
