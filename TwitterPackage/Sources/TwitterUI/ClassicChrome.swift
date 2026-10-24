@@ -306,6 +306,7 @@ extension ButtonStyle where Self == ClassicBarButtonStyle {
 private struct ClassicBarButton: View {
     let configuration: ButtonStyle.Configuration
     let isOnSideBar: Bool
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.isEnabled) private var isEnabled
 
     var body: some View {
@@ -327,8 +328,9 @@ private struct ClassicBarButton: View {
             } else {
                 // Pressed into the silver bar: dark grey under a highlight along its lower edge, darker while pressed.
                 label
-                    .foregroundStyle(Color(.buttonText).opacity(configuration.isPressed ? 1 : 0.75))
-                    .shadow(color: .white.opacity(0.9), radius: 0, y: 1)
+                    .foregroundStyle(Color(.barGlyph).opacity(configuration.isPressed ? 0.6 : 1))
+                    // Light catching the lip below in light mode; a shadow pressed under it on the dark bar.
+                    .shadow(color: Color(.barGlyphHighlight), radius: 0, y: colorScheme == .dark ? -1 : 1)
                     .frame(width: 30, height: 30)
             }
         }
