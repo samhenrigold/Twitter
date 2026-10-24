@@ -47,6 +47,26 @@ final class ColumnGestureUITests: XCTestCase {
         sleep(1)
     }
 
+    /// Turns the device to the orientation named in the `UITEST_ORIENTATION` environment variable (portrait,
+    /// portraitUpsideDown, landscapeLeft, landscapeRight) and launches with the arguments in `UITEST_ARGS`, then waits
+    /// for a screenshot to be taken from outside.
+    @MainActor
+    func testPose() throws {
+        let environment = ProcessInfo.processInfo.environment
+        let orientations: [String: UIDeviceOrientation] = [
+            "portrait": .portrait, "portraitUpsideDown": .portraitUpsideDown,
+            "landscapeLeft": .landscapeLeft, "landscapeRight": .landscapeRight,
+        ]
+        if let name = environment["UITEST_ORIENTATION"], let orientation = orientations[name] {
+            XCUIDevice.shared.orientation = orientation
+        }
+        let arguments = (environment["UITEST_ARGS"] ?? "").split(separator: " ").map(String.init)
+        let app = XCUIApplication(bundleIdentifier: "gold.samhenri.Twitter")
+        app.launchArguments = ["--mock-twitter"] + arguments
+        app.launch()
+        sleep(8)
+    }
+
     private func launch(_ arguments: String...) -> XCUIApplication {
         let app = XCUIApplication(bundleIdentifier: "gold.samhenri.Twitter")
         app.launchArguments = ["--mock-twitter"] + arguments
