@@ -235,7 +235,9 @@ struct ColumnLayoutTests {
         let layout = ColumnLayout(geometry: geometry, depth: 0)
         #expect(layout.showsColumns)
         #expect(layout.width(ofColumn: 0) == 475)
-        #expect(layout.leadingInset == 237)
+        // Drawn wider than its slot, a readable column centred on the desk.
+        #expect(layout.rootDrawnWidth == ColumnLayout.readableRootWidth)
+        #expect(layout.leadingInset == 155)
         #expect(layout.offset == 0)
         #expect(ColumnLayout(geometry: geometry, depth: 1).leadingInset == 0)
     }

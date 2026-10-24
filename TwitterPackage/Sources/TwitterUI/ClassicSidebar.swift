@@ -66,15 +66,20 @@ package struct ClassicSidebar<ID: Hashable, Actions: View>: View {
                 // where nothing is reserved.
                 Color.clear.frame(height: max(occlusion.top, topInset))
 
-                // Side by side when expanded, stacked in the strip, a little below the top.
-                let layout = isExpanded ? AnyLayout(HStackLayout(spacing: 8)) : AnyLayout(VStackLayout(spacing: 12))
-                layout {
+                // Compose across the top; the screen's own buttons beneath it, side by side when expanded, stacked in
+                // the strip.
+                VStack(spacing: 12) {
                     Button(action: compose) {
                         ClassicGlyphLabel("New Tweet", glyph: .compose)
                     }
                     .buttonStyle(ClassicComposeButtonStyle(isExpanded: isExpanded))
 
-                    actions
+                    let layout =
+                        isExpanded ? AnyLayout(HStackLayout(spacing: 8)) : AnyLayout(VStackLayout(spacing: 12))
+                    layout {
+                        actions
+                    }
+                    .frame(maxWidth: .infinity, alignment: isExpanded ? .leading : .center)
                 }
                 .padding(.top, 12)
             }

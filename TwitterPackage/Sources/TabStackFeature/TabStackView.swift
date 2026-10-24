@@ -89,7 +89,9 @@ package struct TabStackView: View {
                 }
                 // Where columns are possible, an explicit width, which animates as columns come and go; the container
                 // relative frame alone would jump straight to its new size.
-                .frame(width: layout.canShowColumns ? layout.rootWidth : nil)
+                // Drawn at its own width, which never changes as columns come and go; laid out in the strip at its
+                // column's width, so a column opening slides over the rest of it, a card dealt onto another.
+                .frame(width: layout.canShowColumns ? layout.rootDrawnWidth : nil)
                 .dimsUnderLeadingEdge(isEnabled: layout.showsColumns)
                 .columnCard(isEnabled: cardMargins != nil)
                 // Alone on the backdrop, the root casts onto it; opened columns cover this as they slide over.
@@ -100,6 +102,7 @@ package struct TabStackView: View {
                 .alreadyHereShake(
                     trigger: store.shake.count, isActive: !layout.showsColumns || store.shake.column == nil
                 )
+                .frame(width: layout.canShowColumns ? layout.rootWidth : nil, alignment: .leading)
                 // Held at the leading edge whenever columns are possible, not only while they're shown: as the last one
                 // goes the strip settles back to its start, and the root stays put rather than riding in from the left.
                 .staysUnderNextColumn(isEnabled: layout.canShowColumns)
@@ -155,6 +158,9 @@ package struct TabStackView: View {
         .padding(.leading, cardMargins?.leading ?? 0)
         .padding(.trailing, cardMargins?.trailing ?? 0)
         // Easing in and out as the root is left alone or joined.
+        // Cards keep clear of the top themselves (see `cardMargins`); a top safe area that's really for a status bar
+        // off in the side bar would push them down again.
+        .ignoresSafeArea(.container, edges: cardMargins != nil ? .top : [])
         .background {
             if layout.canShowColumns { ColumnBackdrop() }
 
@@ -193,15 +199,17 @@ package struct TabStackView: View {
         let safeArea = measuredGeometry.safeArea
         let corners = measuredGeometry.corners
         // Sideways by the container's margins; down from the top as far as the bottom keeps clear (the home
-        // indicator), or the top itself if that's further (a status bar); and always far enough in that the card's
-        // corners clear the display's.
+        // indicator), or below whatever the system reserves over the strip if that's further; and always far enough
+        // in that the card's corners clear the display's.
         let leading = ColumnCard.clearance(from: corners.topLeading)
         let trailing = ColumnCard.clearance(from: corners.topTrailing)
         // The same with or without columns, so opening one never resizes anything. (A lone root on a wide flat display
         // is a column centred on the desk, so it sits well in from the sides anyway.)
         let sideMargin: CGFloat = 1
         return EdgeInsets(
-            top: max(safeArea.top + margins.top, safeArea.bottom + margins.bottom, leading, trailing),
+            // The top safe area spans the window, but what it's for (the status bar, the camera) may sit off to one
+            // side; the strip clears only what actually reaches over it.
+            top: max(measuredGeometry.topOcclusion + margins.top, safeArea.bottom + margins.bottom, leading, trailing),
             leading: max(margins.leading * sideMargin, leading),
             bottom: 0,
             trailing: max(margins.trailing * sideMargin, trailing)
@@ -213,6 +221,7 @@ package struct TabStackView: View {
     private var geometry: ColumnGeometry {
         var geometry = measuredGeometry
         if let stripWidth, stripWidth > 0 { geometry.width = stripWidth }
+        geometry.isRegular = horizontalSizeClass == .regular && verticalSizeClass == .regular
         if let cardMargins {
             geometry.width -= cardMargins.leading + cardMargins.trailing
             geometry.fold = geometry.fold.map {
@@ -643,6 +652,11 @@ struct ColumnGeometry: Equatable {
     var safeArea = EdgeInsets()
     /// How far the container's own rounded corners reach in (the display's, where this meets them).
     var corners = RectangleCornerInsets()
+    /// Whether the window is regular both ways.
+    var isRegular = false
+    /// How far down what the system reserves at the top (the camera, the status bar) reaches over the strip itself;
+    /// zero where it's all off to one side, in the side bar.
+    var topOcclusion: CGFloat = 0
     var width: CGFloat = 0
 
     init() {}
@@ -652,6 +666,12 @@ struct ColumnGeometry: Equatable {
         margins = proxy.contentMargins(for: .container)
         safeArea = proxy.safeAreaInsets
         corners = proxy.containerCornerInsets
+        let width = proxy.size.width
+        topOcclusion =
+            proxy.reservedRegions(kind: .occlusion)
+            .filter { $0.frame.maxX > 0 && $0.frame.minX < width && $0.frame.midY < proxy.size.height / 2 }
+            .map { $0.frame.maxY + $0.margins.bottom }
+            .max() ?? 0
         let division = proxy.reservedRegions(kind: .division)
             .first { $0.frame.height > $0.frame.width }
         if let division, division.frame.minX > 0, division.frame.maxX < width {
@@ -673,6 +693,8 @@ struct ColumnLayout: Equatable {
     static let preferredColumnWidth: CGFloat = 476
     /// Below this a column is too cramped to read a thread in.
     static let minimumColumnWidth: CGFloat = 400
+    /// How much of the root shows beside a column that would otherwise cover it.
+    static let coveredSliver: CGFloat = 28
     /// How much of the column under a web panel Twitter for iPad left showing.
     static let webPanelPeek: CGFloat = 194
 
@@ -707,7 +729,12 @@ struct ColumnLayout: Equatable {
     init(geometry: ColumnGeometry, wideColumns: [Bool]) {
         let width = geometry.width
         containerWidth = width
-        canShowColumns = width > 0 && (geometry.fold != nil || width >= Self.minimumColumnWidth + 160)
+        // Columns wherever a column fits beside the sliver of the one under it, or anywhere a regular window has room
+        // for one column (a card slides over the root rather than pushing onto it).
+        canShowColumns =
+            width > 0
+            && (geometry.fold != nil || width >= Self.minimumColumnWidth + 160
+                || (geometry.isRegular && width >= Self.minimumColumnWidth))
         // Alone on a display with no room for a second column beside it (the outer display), the root spans it.
         guard canShowColumns, geometry.fold != nil || !wideColumns.isEmpty || width >= 2 * Self.minimumColumnWidth
         else { return }
@@ -731,8 +758,9 @@ struct ColumnLayout: Equatable {
             columnWidth = (width / 2).rounded(.down)
             rootWidth = columnWidth
         } else {
-            // Room for one column at a time: the root keeps the whole width, and what opens slides over it.
-            columnWidth = min(Self.preferredColumnWidth, width)
+            // Room for one column at a time: the root keeps the whole width, and what opens slides over all but a
+            // sliver of it, so it's plain there's a card underneath to slide back to.
+            columnWidth = min(Self.preferredColumnWidth, width - Self.coveredSliver)
             rootWidth = width
         }
         let wideWidth = max(columnWidth, width - Self.webPanelPeek)
@@ -740,13 +768,24 @@ struct ColumnLayout: Equatable {
         let stripWidth = widths.reduce(0, +)
         offset = max(stripWidth - width, 0)
         if wideColumns.isEmpty {
-            leadingInset = ((width - columnWidth) / 2).rounded(.down)
+            leadingInset = ((width - rootDrawnWidth) / 2).rounded(.down)
         }
     }
 
-    /// The root's width: its column's while columns are shown, otherwise all of the strip.
+    /// The root's width in the strip: its column's while columns are shown, otherwise all of the strip.
     var rootWidth: CGFloat {
         showsColumns ? width(ofColumn: 0) : containerWidth
+    }
+
+    /// A timeline worth reading on its own: what a lone root is drawn at, where the strip has room.
+    static let readableRootWidth: CGFloat = 640
+
+    /// The root's drawn width, which stays the same whether or not columns are open: where two columns fit, wider
+    /// than its slot, so alone it's a comfortable column centred on the desk and an opened column covers the rest.
+    var rootDrawnWidth: CGFloat {
+        guard showsColumns, isScrollable, !isFolded, widths.count > 0, containerWidth >= 2 * Self.minimumColumnWidth
+        else { return rootWidth }
+        return min(containerWidth, max(rootWidth, Self.readableRootWidth))
     }
 
     func width(ofColumn column: Int) -> CGFloat {
