@@ -153,10 +153,14 @@ private struct LightboxSource: ViewModifier {
     func body(content: Content) -> some View {
         if let media {
             let shape = RoundedRectangle(cornerRadius: cornerRadius)
-            Button(action: open) {
+            ZStack {
                 content.contentShape(shape)
             }
-            .buttonStyle(.plain)
+            // A tap gesture rather than a `Button`, which would claim the touch as it lands and shut out the column
+            // strip's swipe (see `MediaTile`).
+            .onTapGesture(perform: open)
+            .accessibilityElement(children: .ignore)
+            .accessibilityAddTraits(.isButton)
             // Inside the context menu, or the zoom finds no source view (see `MediaTile`).
             .matchedTransitionSource(id: media.id, in: zoomNamespace) { $0.clipShape(shape) }
             .contentShape(.contextMenuPreview, shape)

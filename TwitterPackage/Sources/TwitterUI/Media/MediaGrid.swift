@@ -116,7 +116,7 @@ private struct MediaTile: View {
     private var autoplays: Bool { autoplaysMedia && UIAccessibility.isVideoAutoplayEnabled }
 
     var body: some View {
-        Button(action: open) {
+        ZStack {
             Color.clear
                 .overlay {
                     let tile = FeedImages.mediaTile(item, count: count)
@@ -141,7 +141,12 @@ private struct MediaTile: View {
                 .clipped()
                 .contentShape(.rect)
         }
-        .buttonStyle(.plain)
+        // A tap gesture rather than a `Button`: a button claims the touch as it lands, shutting out the column strip's
+        // swipe, where a tap waits for the finger to lift in place, so a drag that starts on a tile still moves the
+        // columns, as it does from anywhere else in the row.
+        .onTapGesture(perform: open)
+        .accessibilityElement(children: .ignore)
+        .accessibilityAddTraits(.isButton)
         // The viewer zooms out of, and back into, the tile it's showing. Inside the context menu, which hosts what it
         // wraps in a view of its own: outside it, the zoom finds no source view and falls back to zooming from nowhere.
         .matchedTransitionSource(id: item.id, in: zoomNamespace) { source in

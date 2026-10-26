@@ -14,7 +14,7 @@ package struct QuoteCard: View {
 
     package var body: some View {
         let unit = metrics.unit
-        Button(action: action) {
+        ZStack {
             VStack(alignment: .leading, spacing: 4 * unit) {
                 HStack(spacing: 4 * unit) {
                     Avatar(user: tweet.author, size: metrics.quoteAvatarSize)
@@ -50,7 +50,11 @@ package struct QuoteCard: View {
             // Lifted for a context menu as the card it is, not a square cut out of the row.
             .contentShape(.contextMenuPreview, .rect(cornerRadius: 12))
         }
-        .buttonStyle(.plain)
+        // A tap gesture rather than a `Button`, which would claim the touch as it lands and shut out the column strip's
+        // swipe (see `MediaTile`).
+        .onTapGesture(perform: action)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isButton)
     }
 }
 
@@ -67,7 +71,7 @@ package struct LinkCardView: View {
     }
 
     package var body: some View {
-        Link(destination: card.url) {
+        ZStack {
             VStack(alignment: .leading, spacing: 0) {
                 if let imageURL = card.imageURL {
                     RemoteImage(url: imageURL, pointSize: 600)
@@ -97,7 +101,11 @@ package struct LinkCardView: View {
             }
             .contentShape(.contextMenuPreview, .rect(cornerRadius: 12))
         }
-        .buttonStyle(.plain)
+        // A tap gesture rather than a `Link`, which would claim the touch as it lands and shut out the column strip's
+        // swipe (see `MediaTile`).
+        .onTapGesture { openURL(card.url) }
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isLink)
         .contextMenu {
             Button {
                 openURL(card.url)
