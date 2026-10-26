@@ -11,12 +11,19 @@ package struct ComposeFeature {
     package struct State: Equatable {
         /// Photos, a GIF or a video to post with the text.
         var attachments: IdentifiedArrayOf<Attachment> = []
-        let draft: Draft
+        @Presents var confirmation: ConfirmationDialogState<Action.Confirmation>?
+        /// What the Tweet replies to or quotes.
+        var draft: Draft
+        /// Tweets saved to finish later.
+        @Shared(.drafts) var drafts
         var errorMessage: String?
         /// The sheet is on its way out: a second tap on Cancel, while it slides away, would reach a parent that has
         /// already let go of it.
         var isDismissing = false
         var isPosting = false
+        var isShowingDrafts = false
+        /// The saved draft being finished, which posting or saving again replaces.
+        var loadedDraftID: SavedDraft.ID?
         /// Accounts matching the mention being typed at the end of the text.
         var mentionSuggestions: [User] = []
         var text = ""
@@ -30,9 +37,12 @@ package struct ComposeFeature {
         static let photoLimit = 4
 
         var remainingCharacters: Int { Self.characterLimit - text.count }
+        var hasText: Bool { !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        /// Drafts are offered on an empty new Tweet, as Twitter's composer does.
+        var offersDrafts: Bool { !drafts.isEmpty && !hasText && draft.replyingTo == nil && draft.quoting == nil }
         var canPost: Bool {
             !isPosting && !isDismissing && remainingCharacters >= 0
-                && (!text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !attachments.isEmpty)
+                && (hasText || !attachments.isEmpty)
         }
 
         /// The handle being typed after an @ at the end of the text, if any ("@poin" gives "poin").
@@ -62,6 +72,10 @@ package struct ComposeFeature {
     package enum Action: BindableAction {
         case binding(BindingAction<State>)
         case cancelButtonTapped
+        case confirmation(PresentationAction<Confirmation>)
+        case deleteDrafts(IndexSet)
+        case draftTapped(SavedDraft)
+        case draftsButtonTapped
         /// Media picked from the library, loaded and ready to upload.
         case mediaPicked([MediaUpload])
         case mentionSuggestionTapped(User)
@@ -69,10 +83,16 @@ package struct ComposeFeature {
         case postButtonTapped
         case postResponse(Result<String, any Error>)
         case removeAttachmentButtonTapped(Attachment.ID)
+
+        package enum Confirmation: Equatable {
+            case deleteTapped
+            case saveDraftTapped
+        }
     }
 
     @Dependency(TwitterClient.self) var client
     @Dependency(\.continuousClock) var clock
+    @Dependency(\.date.now) var now
     @Dependency(\.dismiss) var dismiss
     @Dependency(\.uuid) var uuid
 
@@ -117,8 +137,66 @@ package struct ComposeFeature {
             case .cancelButtonTapped:
                 // Dismissing cancels the in-flight post effect, which could leave a post sent but unconfirmed.
                 guard !state.isPosting, !state.isDismissing else { return .none }
+                guard state.hasText else {
+                    state.isDismissing = true
+                    return .run { _ in await dismiss() }
+                }
+                // Twitter's question: keep it for later, or let it go.
+                state.confirmation = ConfirmationDialogState {
+                    TextState("Save this Tweet as a draft?")
+                } actions: {
+                    ButtonState(role: .destructive, action: .deleteTapped) {
+                        TextState("Delete")
+                    }
+                    ButtonState(action: .saveDraftTapped) {
+                        TextState("Save Draft")
+                    }
+                    ButtonState(role: .cancel) {
+                        TextState("Cancel")
+                    }
+                }
+                return .none
+
+            case .confirmation(.presented(.deleteTapped)):
+                if let id = state.loadedDraftID {
+                    _ = state.$drafts.withLock { $0.remove(id: id) }
+                }
                 state.isDismissing = true
                 return .run { _ in await dismiss() }
+
+            case .confirmation(.presented(.saveDraftTapped)):
+                let saved = SavedDraft(
+                    id: state.loadedDraftID ?? uuid(),
+                    text: state.text,
+                    replyingTo: state.draft.replyingTo,
+                    quoting: state.draft.quoting,
+                    savedAt: now
+                )
+                state.$drafts.withLock {
+                    $0.remove(id: saved.id)
+                    $0.insert(saved, at: 0)
+                }
+                state.isDismissing = true
+                return .run { _ in await dismiss() }
+
+            case .confirmation:
+                return .none
+
+            case .deleteDrafts(let offsets):
+                state.$drafts.withLock { $0.remove(atOffsets: offsets) }
+                if state.drafts.isEmpty { state.isShowingDrafts = false }
+                return .none
+
+            case .draftTapped(let saved):
+                state.text = saved.text
+                state.draft = Draft(quoting: saved.quoting, replyingTo: saved.replyingTo)
+                state.loadedDraftID = saved.id
+                state.isShowingDrafts = false
+                return .none
+
+            case .draftsButtonTapped:
+                state.isShowingDrafts = true
+                return .none
 
             case .mediaPicked(let uploads):
                 for upload in uploads {
@@ -155,6 +233,9 @@ package struct ComposeFeature {
                 }
 
             case .postResponse(.success):
+                if let id = state.loadedDraftID {
+                    _ = state.$drafts.withLock { $0.remove(id: id) }
+                }
                 state.isPosting = false
                 state.isDismissing = true
                 return .run { _ in await dismiss() }
@@ -165,5 +246,22 @@ package struct ComposeFeature {
                 return .none
             }
         }
+        .ifLet(\.$confirmation, action: \.confirmation)
+    }
+}
+
+/// A Tweet kept to finish later: its text, and what it replies to or quotes. Attachments aren't kept.
+package struct SavedDraft: Codable, Equatable, Identifiable, Sendable {
+    package let id: UUID
+    package var text: String
+    package var replyingTo: Tweet?
+    package var quoting: Tweet?
+    package var savedAt: Date
+}
+
+extension SharedKey where Self == FileStorageKey<IdentifiedArrayOf<SavedDraft>>.Default {
+    /// Drafts, kept on disk, newest first.
+    package static var drafts: Self {
+        Self[.fileStorage(.applicationSupportDirectory.appending(component: "drafts.json")), default: []]
     }
 }

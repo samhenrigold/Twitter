@@ -69,6 +69,12 @@ package struct ComposeView: View {
                     .disabled(store.isPosting || store.isDismissing)
                 }
 
+                if store.offersDrafts {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("Drafts") { store.send(.draftsButtonTapped) }
+                    }
+                }
+
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Tweet", twitterIcon: .compose, role: .confirm) {
                         store.send(.postButtonTapped)
@@ -108,6 +114,10 @@ package struct ComposeView: View {
             }
         }
         .interactiveDismissDisabled(!store.text.isEmpty || !store.attachments.isEmpty || store.isPosting)
+        .confirmationDialog($store.scope(state: \.confirmation, action: \.confirmation))
+        .sheet(isPresented: $store.isShowingDrafts) {
+            DraftsList(store: store)
+        }
         .task(id: pickedItems) {
             guard !pickedItems.isEmpty else { return }
             let uploads = await MediaUpload.load(pickedItems)
@@ -274,5 +284,51 @@ private struct MentionSuggestions: View {
             }
         }
         .tweetMetrics()
+    }
+}
+
+/// Drafts to pick up again: tap one to finish it, swipe to delete.
+private struct DraftsList: View {
+    let store: StoreOf<ComposeFeature>
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            List {
+                ForEach(store.drafts) { draft in
+                    Button {
+                        store.send(.draftTapped(draft))
+                    } label: {
+                        VStack(alignment: .leading, spacing: 4) {
+                            if let replyingTo = draft.replyingTo {
+                                Text("Replying to @\(replyingTo.author.screenName)")
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            Text(draft.text)
+                                .lineLimit(3)
+
+                            Text(draft.savedAt, format: .relative(presentation: .named))
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(.rect)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .onDelete { store.send(.deleteDrafts($0)) }
+            }
+            .listStyle(.plain)
+            .navigationTitle("Drafts")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Close", twitterIcon: .close, role: .close) { dismiss() }
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
     }
 }
