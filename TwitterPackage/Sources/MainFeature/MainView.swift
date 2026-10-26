@@ -61,8 +61,10 @@ private struct MainTabs: UIViewControllerRepresentable {
     }
 
     func makeUIViewController(context: Context) -> UITabBarController {
-        let controller = UITabBarController()
+        let controller = MainTabBarController()
         controller.delegate = context.coordinator
+        controller.compose = { [coordinator = context.coordinator] in coordinator.compose() }
+        controller.selectTab = { [coordinator = context.coordinator] in coordinator.choose($0) }
         controller.tabs = MainFeature.Tab.allInOrder.map { tab in
             UITab(title: tab.title, image: tab.icon(isSelected: false), identifier: tab.rawValue) {
                 [coordinator = context.coordinator] _ in
@@ -93,6 +95,15 @@ private struct MainTabs: UIViewControllerRepresentable {
             let stack = TabStackController(store: tabStack(tab), title: tab.titleKey)
             stacks[tab] = stack
             return stack
+        }
+
+        /// New Tweet, from the tab showing.
+        func compose() {
+            tabStack(store.selectedTab).send(.composeButtonTapped)
+        }
+
+        func choose(_ tab: MainFeature.Tab) {
+            store.selectedTab = tab
         }
 
         func select(_ selection: MainFeature.Tab, in controller: UITabBarController) {
@@ -132,6 +143,35 @@ private struct MainTabs: UIViewControllerRepresentable {
             case .profile: store.scope(state: \.profile, action: \.profile)
             }
         }
+    }
+}
+
+/// The tab bar controller, with Twitter for iPad's keyboard shortcuts: ⌘N for a new Tweet, ⌘1 to ⌘5 for the tabs.
+private final class MainTabBarController: UITabBarController {
+    var compose: () -> Void = {}
+    var selectTab: (MainFeature.Tab) -> Void = { _ in }
+
+    override var keyCommands: [UIKeyCommand]? {
+        let newTweet = UIKeyCommand(
+            title: String(localized: "New Tweet"), image: TwitterIcon.compose.uiImage, action: #selector(newTweet),
+            input: "n", modifierFlags: .command)
+        let tabs = MainFeature.Tab.allInOrder.enumerated().map { index, tab in
+            UIKeyCommand(
+                title: tab.title, action: #selector(selectTab(_:)), input: "\(index + 1)", modifierFlags: .command,
+                propertyList: tab.rawValue)
+        }
+        return [newTweet] + tabs
+    }
+
+    @objc private func newTweet() {
+        compose()
+    }
+
+    @objc private func selectTab(_ command: UIKeyCommand) {
+        guard let rawValue = command.propertyList as? String, let tab = MainFeature.Tab(rawValue: rawValue) else {
+            return
+        }
+        selectTab(tab)
     }
 }
 
