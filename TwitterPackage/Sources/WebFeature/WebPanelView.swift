@@ -26,12 +26,12 @@ package struct WebPanelView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItemGroup(placement: .topBarLeading) {
-                    Button("Back", systemImage: "chevron.backward") {
+                    Button("Back", twitterIcon: .chevronLeft) {
                         if let item = page.backForwardList.backList.last { page.load(item) }
                     }
                     .disabled(page.backForwardList.backList.isEmpty)
 
-                    Button("Forward", systemImage: "chevron.forward") {
+                    Button("Forward", twitterIcon: .chevronRight) {
                         if let item = page.backForwardList.forwardList.first { page.load(item) }
                     }
                     .disabled(page.backForwardList.forwardList.isEmpty)
@@ -39,13 +39,13 @@ package struct WebPanelView: View {
 
                 ToolbarItem(placement: .topBarTrailing) {
                     if page.isLoading {
-                        Button("Stop", systemImage: "xmark") { page.stopLoading() }
+                        Button("Stop", twitterIcon: .close) { page.stopLoading() }
                     } else {
-                        Button("Reload", systemImage: "arrow.clockwise") { page.reload() }
+                        Button("Reload", twitterIcon: .refresh) { page.reload() }
                     }
                 }
 
-                ColumnMenuToolbarItem("Share", systemImage: "square.and.arrow.up") {
+                ColumnMenuToolbarItem("Share", twitterIcon: .shareStroke) {
                     WebPanelMenuItems(store: store)
                 }
             }
@@ -74,11 +74,11 @@ package struct WebPanelMenuItems: View {
         let url = store.currentURL ?? store.url
         ShareLink(item: url)
 
-        Button("Open in Safari", systemImage: "safari") {
+        Button("Open in Safari", twitterIcon: .globe) {
             store.send(.openInSafariButtonTapped)
         }
 
-        Button("Copy Link", systemImage: "link") {
+        Button("Copy Link", twitterIcon: .link) {
             UIPasteboard.general.url = url
         }
     }

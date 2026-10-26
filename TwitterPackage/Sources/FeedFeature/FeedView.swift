@@ -243,7 +243,7 @@ struct FeedFooter: View {
         Group {
             if let errorMessage = store.errorMessage {
                 ContentUnavailableView {
-                    Label("Couldn't load Tweets", systemImage: "exclamationmark.bubble")
+                    Label("Couldn't load Tweets", twitterIcon: .warningStroke)
                 } description: {
                     Text(errorMessage)
                 } actions: {

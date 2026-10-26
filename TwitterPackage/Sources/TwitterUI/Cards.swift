@@ -1,6 +1,7 @@
 import Models
 import Routing
 import SwiftUI
+import TwitterUI
 
 package struct QuoteCard: View {
     let tweet: Tweet
@@ -102,21 +103,21 @@ package struct LinkCardView: View {
             Button {
                 openURL(card.url)
             } label: {
-                Label("Open Link", systemImage: "arrow.up.right.square")
+                Label("Open Link", twitterIcon: .externalLinkStroke)
             }
 
             if supportsMultipleWindows, let route = Route.forLink(card.url) {
                 Button {
                     openWindow(value: route.window)
                 } label: {
-                    Label("Open in New Window", systemImage: "macwindow.badge.plus")
+                    Label("Open in New Window", twitterIcon: .newWindow)
                 }
             }
 
             Button {
                 UIApplication.shared.open(card.url)
             } label: {
-                Label("Open in Safari", systemImage: "safari")
+                Label("Open in Safari", twitterIcon: .globe)
             }
 
             Divider()
@@ -124,7 +125,7 @@ package struct LinkCardView: View {
             Button {
                 UIPasteboard.general.url = card.url
             } label: {
-                Label("Copy Link", systemImage: "link")
+                Label("Copy Link", twitterIcon: .link)
             }
 
             ShareLink(item: card.url)

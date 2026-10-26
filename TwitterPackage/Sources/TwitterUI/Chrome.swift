@@ -2,20 +2,22 @@ import SwiftUI
 
 /// A screen's "…" menu, at the trailing end of its bar.
 package struct ColumnMenuToolbarItem<Items: View>: ToolbarContent {
-    let systemImage: String
+    let icon: TwitterIcon
     let title: LocalizedStringKey
     let items: Items
 
-    package init(_ title: LocalizedStringKey, systemImage: String = "ellipsis", @ViewBuilder items: () -> Items) {
-        self.systemImage = systemImage
+    package init(_ title: LocalizedStringKey, twitterIcon icon: TwitterIcon = .more, @ViewBuilder items: () -> Items) {
+        self.icon = icon
         self.title = title
         self.items = items()
     }
 
     package var body: some ToolbarContent {
         ToolbarItem(placement: .topBarTrailing) {
-            Menu(title, systemImage: systemImage) {
+            Menu {
                 items
+            } label: {
+                Label(title, twitterIcon: icon)
             }
         }
     }

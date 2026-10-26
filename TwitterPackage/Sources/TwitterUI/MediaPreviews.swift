@@ -5,6 +5,7 @@ import ImagePipeline
 import Models
 import Photos
 import SwiftUI
+import TwitterUI
 import UIKit
 import UniformTypeIdentifiers
 
@@ -40,9 +41,9 @@ private struct MediaPreviewMenu: ViewModifier {
         content.contextMenu {
             Button(action: open) {
                 switch media.kind {
-                case .photo: Label(openTitle ?? "View Photo", systemImage: "arrow.up.left.and.arrow.down.right")
-                case .gif: Label(openTitle ?? "Play GIF", systemImage: "play")
-                case .video: Label(openTitle ?? "Play Video", systemImage: "play")
+                case .photo: Label(openTitle ?? "View Photo", twitterIcon: .mediaStroke)
+                case .gif: Label(openTitle ?? "Play GIF", twitterIcon: .play)
+                case .video: Label(openTitle ?? "Play Video", twitterIcon: .play)
                 }
             }
 
@@ -52,7 +53,7 @@ private struct MediaPreviewMenu: ViewModifier {
                 Button {
                     Task { await MediaLibrary.save(media) }
                 } label: {
-                    Label(media.kind == .photo ? "Save Photo" : "Save Video", systemImage: "square.and.arrow.down")
+                    Label(media.kind == .photo ? "Save Photo" : "Save Video", twitterIcon: .download)
                 }
             }
 
@@ -60,7 +61,7 @@ private struct MediaPreviewMenu: ViewModifier {
                 Button {
                     Task { await MediaLibrary.copy(media) }
                 } label: {
-                    Label("Copy Photo", systemImage: "doc.on.doc")
+                    Label("Copy Photo", twitterIcon: .copyStroke)
                 }
                 let photo = SharedPhoto(url: MediaLibrary.originalURL(of: media))
                 let title = media.altText ?? String(localized: "Photo")
@@ -77,7 +78,7 @@ private struct MediaPreviewMenu: ViewModifier {
                 Button {
                     UIPasteboard.general.url = link
                 } label: {
-                    Label(media.kind == .photo ? "Copy Link" : "Copy Video Link", systemImage: "link")
+                    Label(media.kind == .photo ? "Copy Link" : "Copy Video Link", twitterIcon: .link)
                 }
             }
         } preview: {

@@ -23,7 +23,7 @@ package struct SignInView: View {
             .overlay {
                 if let errorMessage = store.errorMessage {
                     ContentUnavailableView {
-                        Label("Couldn't sign in", systemImage: "person.crop.circle.badge.exclamationmark")
+                        Label("Couldn't sign in", twitterIcon: .warningStroke)
                     } description: {
                         Text(errorMessage)
                     } actions: {

@@ -2,6 +2,7 @@ import ComposableArchitecture
 import FeedFeature
 import Routing
 import SwiftUI
+import TwitterUI
 
 package struct SearchView: View {
     @Bindable var store: StoreOf<SearchFeature>
@@ -17,7 +18,7 @@ package struct SearchView: View {
             } else {
                 ContentUnavailableView(
                     "Search Twitter",
-                    systemImage: "magnifyingglass",
+                    twitterIcon: .searchStroke,
                     description: Text("Find Tweets, people, and #topics.")
                 )
             }

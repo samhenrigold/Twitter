@@ -25,7 +25,7 @@ package struct TweetRow: View {
     package var body: some View {
         VStack(alignment: .leading, spacing: 4 * metrics.unit) {
             if let reposter = item.repostedBy {
-                ContextLabel(symbol: "arrow.2.squarepath", text: "\(reposter.name) retweeted")
+                ContextLabel(symbol: TwitterIcon.repostStroke.rawValue, text: "\(reposter.name) retweeted")
             } else if let context = item.socialContext {
                 ContextLabel(symbol: item.socialSymbol ?? "sparkles", text: context)
             }
@@ -249,7 +249,7 @@ private struct ReplyRestrictionBanner: View {
                 }
             }
         } icon: {
-            Image(systemName: restriction.policy == .mentioned ? "at" : "person.badge.shield.checkmark")
+            Glyph(restriction.policy == .mentioned ? "at" : TwitterIcon.followingStroke.rawValue, size: 16)
                 .foregroundStyle(.tint)
         }
         .font(.footnote)
@@ -386,7 +386,7 @@ private struct ContextLabel: View {
 
     var body: some View {
         HStack(spacing: metrics.gutter) {
-            Image(systemName: symbol)
+            Glyph(symbol, size: 16)
                 .frame(width: metrics.avatarSize, alignment: .trailing)
 
             Text(text).lineLimit(1)
@@ -520,13 +520,13 @@ private struct RepostMenu: View {
             Button {
                 store.send(.repostButtonTapped(tweet))
             } label: {
-                Label(engagement.repost.isOn ? "Undo Retweet" : "Retweet", systemImage: "arrow.2.squarepath")
+                Label(engagement.repost.isOn ? "Undo Retweet" : "Retweet", twitterIcon: .repostStroke)
             }
 
             Button {
                 store.send(.quoteButtonTapped(tweet))
             } label: {
-                Label("Quote Tweet", systemImage: "quote.bubble")
+                Label("Quote Tweet", twitterIcon: .quote)
             }
         } label: {
             EngagementLabel(icon: engagement.repost.isOn ? .repost : .repostStroke, count: engagement.repost.count)
@@ -582,20 +582,20 @@ package struct TweetMenu: View {
         Button {
             store.send(.replyButtonTapped(tweet))
         } label: {
-            Label("Reply", systemImage: "arrowshape.turn.up.left")
+            Label("Reply", twitterIcon: .replyStroke)
         }
         .disabled(!tweet.viewerCanReply)
 
         Button {
             store.send(.repostButtonTapped(tweet))
         } label: {
-            Label(engagement.repost.isOn ? "Undo Retweet" : "Retweet", systemImage: "arrow.2.squarepath")
+            Label(engagement.repost.isOn ? "Undo Retweet" : "Retweet", twitterIcon: .repostStroke)
         }
 
         Button {
             store.send(.quoteButtonTapped(tweet))
         } label: {
-            Label("Quote Tweet", systemImage: "quote.bubble")
+            Label("Quote Tweet", twitterIcon: .quote)
         }
 
         PostActivityMenu(tweet: tweet, isOwnPost: tweet.author.id == viewer?.id, store: store)
@@ -603,7 +603,7 @@ package struct TweetMenu: View {
         Button {
             store.send(.authorTapped(tweet.author))
         } label: {
-            Label("View @\(tweet.author.screenName)", systemImage: "person")
+            Label("View @\(tweet.author.screenName)", twitterIcon: .personStroke)
         }
 
         if tweet.author.id != viewer?.id {
@@ -613,7 +613,7 @@ package struct TweetMenu: View {
                 Label(
                     tweet.author.isBlocking
                         ? "Unblock @\(tweet.author.screenName)" : "Block @\(tweet.author.screenName)",
-                    systemImage: "nosign")
+                    twitterIcon: .block)
             }
         }
 
@@ -623,13 +623,13 @@ package struct TweetMenu: View {
             Button {
                 openWindow(value: Route.thread(tweet).window)
             } label: {
-                Label("Open in New Window", systemImage: "macwindow.badge.plus")
+                Label("Open in New Window", twitterIcon: .newWindow)
             }
 
             Button {
                 openWindow(value: Route.profile(tweet.author).window)
             } label: {
-                Label("Open @\(tweet.author.screenName) in New Window", systemImage: "person.crop.rectangle.badge.plus")
+                Label("Open @\(tweet.author.screenName) in New Window", twitterIcon: .newWindow)
             }
         }
 
@@ -640,7 +640,7 @@ package struct TweetMenu: View {
         Button {
             UIPasteboard.general.url = tweet.url
         } label: {
-            Label("Copy Link", systemImage: "link")
+            Label("Copy Link", twitterIcon: .link)
         }
     }
 }
@@ -742,7 +742,7 @@ private struct NotificationIcon: View {
 
     var body: some View {
         let style = NotificationIconStyle(icon: icon)
-        Image(systemName: style.symbol)
+        Glyph(style.symbol, size: 26)
             .font(.title2)
             .foregroundStyle(style.color)
             .accessibilityHidden(true)
@@ -756,13 +756,13 @@ private struct NotificationIconStyle {
     init(icon: String) {
         switch icon {
         case let icon where icon.contains("heart"):
-            (symbol, color) = ("heart.fill", .pink)
+            (symbol, color) = (TwitterIcon.heart.rawValue, .twitterLike)
         case let icon where icon.contains("retweet"):
-            (symbol, color) = ("arrow.2.squarepath", .green)
+            (symbol, color) = (TwitterIcon.repostStroke.rawValue, .twitterRepost)
         case let icon where icon.contains("person") || icon.contains("follow"):
-            (symbol, color) = ("person.fill", .accentColor)
+            (symbol, color) = (TwitterIcon.person.rawValue, .accentColor)
         case let icon where icon.contains("bell"):
-            (symbol, color) = ("bell.fill", .accentColor)
+            (symbol, color) = (TwitterIcon.notifications.rawValue, .accentColor)
         case let icon where icon.contains("star") || icon.contains("bird"):
             (symbol, color) = ("star.fill", .purple)
         case let icon where icon.contains("security") || icon.contains("safety"):

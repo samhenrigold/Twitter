@@ -4,6 +4,7 @@ import Dependencies
 import ImagePipeline
 import Models
 import SwiftUI
+import TwitterUI
 
 package struct MediaGrid: View {
     let media: [Media]
@@ -186,7 +187,7 @@ package struct MediaViewer: View {
             .toolbarVisibility(showsChrome ? .automatic : .hidden, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Close", systemImage: "xmark", role: .close) { dismiss() }
+                    Button("Close", twitterIcon: .close, role: .close) { dismiss() }
                 }
 
                 if let item = media.first(where: { $0.id == selection }), item.kind == .photo {

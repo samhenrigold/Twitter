@@ -1,6 +1,7 @@
 import ComposableArchitecture
 import Models
 import SwiftUI
+import TwitterUI
 
 /// A post's activity in its menu: who reposted it, the posts quoting it, and, for the viewer's own posts, who liked
 /// it (Twitter made likes private in 2024, so nobody else's list shows anyone). Lists with nothing in them are left
@@ -17,7 +18,7 @@ struct PostActivityMenu: View {
                     Button {
                         store.send(.repostsButtonTapped(tweet))
                     } label: {
-                        Label("Retweets", systemImage: "arrow.2.squarepath")
+                        Label("Retweets", twitterIcon: .repostStroke)
                     }
                 }
 
@@ -25,7 +26,7 @@ struct PostActivityMenu: View {
                     Button {
                         store.send(.quotesButtonTapped(tweet))
                     } label: {
-                        Label("Quote Tweets", systemImage: "quote.bubble")
+                        Label("Quote Tweets", twitterIcon: .quote)
                     }
                 }
 
@@ -33,11 +34,11 @@ struct PostActivityMenu: View {
                     Button {
                         store.send(.likesButtonTapped(tweet))
                     } label: {
-                        Label("Likes", systemImage: "heart")
+                        Label("Likes", twitterIcon: .heartStroke)
                     }
                 }
             } label: {
-                Label("View Tweet Activity", systemImage: "chart.bar")
+                Label("View Tweet Activity", twitterIcon: .views)
             }
         }
     }

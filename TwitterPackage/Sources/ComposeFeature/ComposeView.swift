@@ -38,7 +38,7 @@ package struct ComposeView: View {
                     }
 
                     if let errorMessage = store.errorMessage {
-                        Label(errorMessage, systemImage: "exclamationmark.triangle")
+                        Label(errorMessage, twitterIcon: .warningStroke)
                             .font(.footnote)
                             .foregroundStyle(.red)
                     }
@@ -51,14 +51,14 @@ package struct ComposeView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel", systemImage: "xmark", role: .cancel) {
+                    Button("Cancel", twitterIcon: .close, role: .cancel) {
                         store.send(.cancelButtonTapped)
                     }
                     .disabled(store.isPosting || store.isDismissing)
                 }
 
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Tweet", systemImage: "paperplane", role: .confirm) {
+                    Button("Tweet", twitterIcon: .compose, role: .confirm) {
                         store.send(.postButtonTapped)
                     }
                     .disabled(!store.canPost)

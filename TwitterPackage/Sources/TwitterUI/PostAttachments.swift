@@ -2,6 +2,7 @@ import Dependencies
 import ImagePipeline
 import Models
 import SwiftUI
+import TwitterUI
 
 /// The check next to a verified name: blue for subscribers, gold for businesses, gray for governments.
 package struct VerificationBadgeView: View {
@@ -13,16 +14,12 @@ package struct VerificationBadgeView: View {
 
     package var body: some View {
         Group {
-            if badge == .blue {
-                // Twitter 4.x's own badge, `ic_verified_default`, sized to the name it follows.
-                Image("VerifiedBadge", bundle: .module)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 15, height: 15)
-            } else {
-                Image(systemName: "checkmark.seal.fill")
-                    .foregroundStyle(color)
-            }
+            // Twitter's badge, in the account's color, sized to the name it follows.
+            TwitterIcon.verified.image
+                .resizable()
+                .scaledToFit()
+                .frame(width: 16, height: 16)
+                .foregroundStyle(color)
         }
         .accessibilityLabel(label)
     }
@@ -123,7 +120,7 @@ package struct CommunityNoteCard: View {
 
     package var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Label(note.shortTitle ?? "Readers added context", systemImage: "person.2.fill")
+            Label(note.shortTitle ?? "Readers added context", twitterIcon: .communities)
                 .font(.subheadline.weight(.semibold))
 
             TweetText(links: note.links, text: note.text, font: .subheadline)

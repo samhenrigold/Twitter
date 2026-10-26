@@ -118,16 +118,16 @@ package enum TimelineParser {
                 item.socialContext = social
                 item.socialSymbol =
                     switch (context["contextType"] as? String ?? "").lowercased() {
-                    case "pin": "pin.fill"
-                    case "like": "heart.fill"
-                    case "follow", "following": "person.fill"
-                    case "conversation", "reply": "bubble.left.fill"
-                    case "community": "person.3.fill"
-                    case "list": "list.bullet"
+                    case "pin": "pin"
+                    case "like": "heart"
+                    case "follow", "following": "person"
+                    case "conversation", "reply": "reply_stroke"
+                    case "community": "communities"
+                    case "list": "lists"
                     case "topic": "number"
-                    case "location": "mappin"
+                    case "location": "location"
                     case "megaphone", "spaces": "megaphone.fill"
-                    default: social.lowercased().contains("pinned") ? "pin.fill" : "sparkles"
+                    default: social.lowercased().contains("pinned") ? "pin" : "sparkles"
                     }
             }
             return .tweet(item)

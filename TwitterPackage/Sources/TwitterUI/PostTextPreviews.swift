@@ -243,38 +243,42 @@ private final class EntityInteractionView: UIView, UIContextMenuInteractionDeleg
         var secondary: [UIMenuElement] = []
         if let url = target.url {
             primary.append(
-                UIAction(title: openTitle(for: target), image: UIImage(systemName: openSymbol(for: target))) {
+                UIAction(title: openTitle(for: target), image: openImage(for: target)) {
                     [weak self] _ in self?.open?(url)
                 })
         }
         if let openWindow, let route = target.route {
             primary.append(
                 UIAction(
-                    title: String(localized: "Open in New Window"), image: UIImage(systemName: "macwindow.badge.plus")
+                    title: String(localized: "Open in New Window"), image: TwitterIcon.newWindow.uiImage
                 ) { _ in openWindow(route) })
         }
         switch target.entity {
         case .mention(let screenName):
-            secondary.append(copyAction(String(localized: "Copy Username"), symbol: "at", string: "@\(screenName)"))
+            secondary.append(
+                copyAction(
+                    String(localized: "Copy Username"), image: UIImage(systemName: "at"), string: "@\(screenName)"))
         case .hashtag(let tag):
-            secondary.append(copyAction(String(localized: "Copy Hashtag"), symbol: "number", string: tag))
+            secondary.append(
+                copyAction(String(localized: "Copy Hashtag"), image: UIImage(systemName: "number"), string: tag))
         case .cashtag(let tag):
-            secondary.append(copyAction(String(localized: "Copy Cashtag"), symbol: "dollarsign", string: tag))
+            secondary.append(
+                copyAction(String(localized: "Copy Cashtag"), image: UIImage(systemName: "dollarsign"), string: tag))
         case .url(let url):
             if case .web = target.route {
                 primary.append(
-                    UIAction(title: String(localized: "Open in Safari"), image: UIImage(systemName: "safari")) { _ in
+                    UIAction(title: String(localized: "Open in Safari"), image: TwitterIcon.globe.uiImage) { _ in
                         UIApplication.shared.open(url)
                     })
             }
         }
         if let webURL = target.webURL {
             secondary.append(
-                UIAction(title: String(localized: "Copy Link"), image: UIImage(systemName: "link")) { _ in
+                UIAction(title: String(localized: "Copy Link"), image: TwitterIcon.link.uiImage) { _ in
                     UIPasteboard.general.url = webURL
                 })
             secondary.append(
-                UIAction(title: String(localized: "Share…"), image: UIImage(systemName: "square.and.arrow.up")) {
+                UIAction(title: String(localized: "Share…"), image: TwitterIcon.shareStroke.uiImage) {
                     [weak self] _ in self?.share(webURL, from: target)
                 })
         }
@@ -292,16 +296,16 @@ private final class EntityInteractionView: UIView, UIContextMenuInteractionDeleg
         }
     }
 
-    private func openSymbol(for target: EntityTarget) -> String {
+    private func openImage(for target: EntityTarget) -> UIImage? {
         switch target.entity {
-        case .mention: "person.crop.circle"
-        case .hashtag, .cashtag: "magnifyingglass"
-        case .url: target.screenName == nil ? "arrow.up.right.square" : "person.crop.circle"
+        case .mention: TwitterIcon.personStroke.uiImage
+        case .hashtag, .cashtag: TwitterIcon.searchStroke.uiImage
+        case .url: (target.screenName == nil ? TwitterIcon.externalLinkStroke : .personStroke).uiImage
         }
     }
 
-    private func copyAction(_ title: String, symbol: String, string: String) -> UIAction {
-        UIAction(title: title, image: UIImage(systemName: symbol)) { _ in
+    private func copyAction(_ title: String, image: UIImage?, string: String) -> UIAction {
+        UIAction(title: title, image: image) { _ in
             UIPasteboard.general.string = string
         }
     }

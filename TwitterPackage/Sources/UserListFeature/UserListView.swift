@@ -117,7 +117,7 @@ private struct UserListFooter: View {
         Group {
             if let errorMessage = store.errorMessage {
                 ContentUnavailableView {
-                    Label("Couldn't load people", systemImage: "person.crop.circle.badge.exclamationmark")
+                    Label("Couldn't load people", twitterIcon: .warningStroke)
                 } description: {
                     Text(errorMessage)
                 } actions: {
@@ -128,7 +128,7 @@ private struct UserListFooter: View {
                 ProgressView()
                     .padding(.vertical, 32)
             } else if store.hasLoaded, store.users.isEmpty {
-                ContentUnavailableView(store.source.emptyTitle, systemImage: "person.2")
+                ContentUnavailableView(store.source.emptyTitle, twitterIcon: .communitiesStroke)
             } else if store.hasLoaded, store.bottomCursor == nil {
                 EndOfTimeline()
             }

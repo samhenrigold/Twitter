@@ -20,7 +20,7 @@ package struct RouteWindowView: View {
                 Color.clear
             case .failed(let message):
                 ContentUnavailableView {
-                    Label("Couldn't reach Twitter", systemImage: "wifi.exclamationmark")
+                    Label("Couldn't reach Twitter", twitterIcon: .cloudOff)
                 } description: {
                     Text(message)
                 } actions: {
@@ -34,7 +34,7 @@ package struct RouteWindowView: View {
             case .signedOut:
                 ContentUnavailableView(
                     "Signed Out",
-                    systemImage: "person.crop.circle.badge.xmark",
+                    twitterIcon: .signOut,
                     description: Text("Sign in from the main Twitter window to see this.")
                 )
             }

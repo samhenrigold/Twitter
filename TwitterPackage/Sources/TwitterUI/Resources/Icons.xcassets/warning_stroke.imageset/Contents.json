@@ -1,9 +1,8 @@
 {
   "images" : [
     {
-      "filename" : "compose@2x.png",
-      "idiom" : "universal",
-      "scale" : "2x"
+      "filename" : "warning_stroke.svg",
+      "idiom" : "universal"
     }
   ],
   "info" : {
@@ -11,6 +10,7 @@
     "version" : 1
   },
   "properties" : {
+    "preserves-vector-representation" : true,
     "template-rendering-intent" : "template"
   }
 }

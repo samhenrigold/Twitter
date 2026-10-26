@@ -23,7 +23,7 @@ package struct ProfileView: View {
                 }
             } else if let errorMessage = store.errorMessage {
                 ContentUnavailableView {
-                    Label("Couldn't load @\(store.screenName)", systemImage: "person.crop.circle.badge.exclamationmark")
+                    Label("Couldn't load @\(store.screenName)", twitterIcon: .warningStroke)
                 } description: {
                     Text(errorMessage)
                 } actions: {
@@ -62,13 +62,13 @@ package struct ProfileMenuItems: View {
 
             Divider()
 
-            Button("Sign Out", systemImage: "rectangle.portrait.and.arrow.right", role: .destructive) {
+            Button("Sign Out", twitterIcon: .signOut, role: .destructive) {
                 store.send(.signOutButtonTapped)
             }
         } else if let user = store.user {
             Button(
                 user.isBlocking ? "Unblock @\(user.screenName)" : "Block @\(user.screenName)",
-                systemImage: "nosign",
+                twitterIcon: .block,
                 role: user.isBlocking ? nil : .destructive
             ) {
                 store.send(.blockButtonTapped)
@@ -96,13 +96,13 @@ private struct BlockedProfile: View {
 
                 if user.blocksViewer {
                     ContentUnavailableView {
-                        Label("You're blocked", systemImage: "nosign")
+                        Label("You're blocked", twitterIcon: .block)
                     } description: {
                         Text("You can't follow or see @\(user.screenName)'s Tweets.")
                     }
                 } else {
                     ContentUnavailableView {
-                        Label("You blocked @\(user.screenName)", systemImage: "nosign")
+                        Label("You blocked @\(user.screenName)", twitterIcon: .block)
                     } description: {
                         Text(
                             "Are you sure you want to view these Tweets? Viewing Tweets won't unblock @\(user.screenName)."
@@ -294,17 +294,17 @@ private struct ProfileDetailItems: View {
 
     var body: some View {
         if !user.location.isEmpty {
-            Label(user.location, systemImage: "mappin.and.ellipse")
+            Label(user.location, twitterIcon: .locationStroke)
         }
 
         if let website = user.website, let url = user.websiteURL {
             Link(destination: url) {
-                Label(website, systemImage: "link")
+                Label(website, twitterIcon: .link)
             }
         }
 
         if let joined = user.joined {
-            Label("Joined \(joined.formatted(.dateTime.month(.wide).year()))", systemImage: "calendar")
+            Label("Joined \(joined.formatted(.dateTime.month(.wide).year()))", twitterIcon: .calendar)
         }
     }
 }

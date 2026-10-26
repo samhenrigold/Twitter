@@ -4,6 +4,7 @@ import MainFeature
 import Routing
 import SwiftUI
 import TwitterClient
+import TwitterUI
 
 /// The app's scenes: the main window, plus standalone windows for a post, profile, or search that people open beside
 /// it on iPhone Duo's inner display (the system only offers new windows where there's room for them).
@@ -21,7 +22,7 @@ public struct TwitterScenes: Scene {
                     .id(route)
                     .asyncImageURLSession(.images)
             } else {
-                ContentUnavailableView("Nothing to Show", systemImage: "macwindow")
+                ContentUnavailableView("Nothing to Show", twitterIcon: .newWindow)
             }
         }
         // Only "Open in New Window" makes these; the system's New Window command belongs to the main group.

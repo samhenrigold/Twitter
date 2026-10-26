@@ -5,6 +5,7 @@ import SwiftUI
 import Synchronization
 import TwitterClient
 import TwitterDatabase
+import TwitterUI
 import UIKit
 
 extension View {
@@ -24,14 +25,14 @@ private struct ProfilePreviewMenu: ViewModifier {
     func body(content: Content) -> some View {
         content.contextMenu {
             Button(action: open) {
-                Label("View Profile", systemImage: "person.crop.circle")
+                Label("View Profile", twitterIcon: .personStroke)
             }
 
             if supportsMultipleWindows {
                 Button {
                     openWindow(value: Route.profile(user).window)
                 } label: {
-                    Label("Open in New Window", systemImage: "macwindow.badge.plus")
+                    Label("Open in New Window", twitterIcon: .newWindow)
                 }
             }
 
@@ -150,8 +151,10 @@ package struct ProfilePreviewCard: View {
                 }
 
                 if user?.isProtected == true {
-                    Image(systemName: "lock.fill")
-                        .imageScale(.small)
+                    TwitterIcon.lock.image
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 14, height: 14)
                         .foregroundStyle(.twitterPrimary)
                         .accessibilityLabel("Protected")
                 }

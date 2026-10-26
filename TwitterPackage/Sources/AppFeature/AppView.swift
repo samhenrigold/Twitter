@@ -31,7 +31,7 @@ private struct AppRootView: View {
             switch store.state {
             case .launchFailed(let message):
                 ContentUnavailableView {
-                    Label("Couldn't reach Twitter", systemImage: "wifi.exclamationmark")
+                    Label("Couldn't reach Twitter", twitterIcon: .cloudOff)
                 } description: {
                     Text(message)
                 } actions: {

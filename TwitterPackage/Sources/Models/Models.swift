@@ -121,7 +121,7 @@ package struct FeedTweet: Identifiable, Hashable, Codable, Sendable {
     package var tweet: Tweet
     package var repostedBy: User?
     package var socialContext: String?
-    /// SF Symbol for the context line ("Pinned", "Twitter liked", "Followed by …").
+    /// Glyph for the context line: one of Twitter's icons by asset name, or an SF Symbol ("Pinned", "Twitter liked", "Followed by …").
     package var socialSymbol: String?
     /// Draws a thread line down to the next post (conversation modules and reply chains).
     package var connectsBelow = false
