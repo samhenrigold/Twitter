@@ -249,7 +249,7 @@ private struct ReplyRestrictionBanner: View {
                 }
             }
         } icon: {
-            Glyph(restriction.policy == .mentioned ? "at" : TwitterIcon.followingStroke.rawValue, size: 16)
+            Glyph((restriction.policy == .mentioned ? TwitterIcon.at : .followingStroke).rawValue, size: 16)
                 .foregroundStyle(.tint)
         }
         .font(.footnote)

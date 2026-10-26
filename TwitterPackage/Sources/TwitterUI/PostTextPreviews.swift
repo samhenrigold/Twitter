@@ -257,7 +257,7 @@ private final class EntityInteractionView: UIView, UIContextMenuInteractionDeleg
         case .mention(let screenName):
             secondary.append(
                 copyAction(
-                    String(localized: "Copy Username"), image: UIImage(systemName: "at"), string: "@\(screenName)"))
+                    String(localized: "Copy Username"), image: TwitterIcon.at.uiImage, string: "@\(screenName)"))
         case .hashtag(let tag):
             secondary.append(
                 copyAction(String(localized: "Copy Hashtag"), image: UIImage(systemName: "number"), string: tag))

@@ -3,18 +3,21 @@ import UIKit
 
 /// Twitter's own action glyphs: 24 × 24 template vectors, tinted by the foreground style.
 package enum TwitterIcon: String, Sendable {
+    case arrowUp = "arrow_up"
+    case at
     case block
     case bookmark
     case bookmarkStroke = "bookmark_stroke"
     case calendar
+    case checkmarkCircle = "checkmark_circle"
     case chevronLeft = "chevron_left"
     case chevronRight = "chevron_right"
     case close
     case cloudOff = "cloud_off"
     case communities
     case communitiesStroke = "communities_stroke"
-    /// New Tweet: the feather with a plus.
-    case compose = "new_tweet"
+    /// New Tweet: the feather.
+    case compose = "feather"
     case copyStroke = "copy_stroke"
     case download
     case externalLinkStroke = "external_link_stroke"
@@ -50,8 +53,11 @@ package enum TwitterIcon: String, Sendable {
     case searchStroke = "search_stroke"
     case shareStroke = "share_stroke"
     case signOut = "sign_out"
-    /// The verified badge (drawn on 22 × 22, not 24).
+    /// The bird.
+    case twitter
+    /// The verified badge, for tinting in the account's color.
     case verified
+    case videoOff = "video_off"
     case views = "bar_chart"
     case warningStroke = "warning_stroke"
 

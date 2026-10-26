@@ -76,7 +76,7 @@ private struct NewPostsButton: View {
 
     var body: some View {
         Button(action: action) {
-            Label(count == 1 ? "1 new Tweet" : "\(count) new Tweets", systemImage: "arrow.up")
+            Label(count == 1 ? "1 new Tweet" : "\(count) new Tweets", twitterIcon: .arrowUp)
                 .font(.subheadline.weight(.semibold))
                 .padding(.horizontal, 6)
         }
@@ -254,7 +254,7 @@ struct FeedFooter: View {
                 ProgressView()
                     .padding(.vertical, 32)
             } else if store.hasLoaded, store.items.isEmpty {
-                ContentUnavailableView("Nothing here yet", systemImage: "bird")
+                ContentUnavailableView("Nothing here yet", twitterIcon: .twitter)
             } else if store.hasLoaded, store.bottomCursor == nil {
                 EndOfTimeline()
             }

@@ -41,7 +41,7 @@ private struct ProfilePreviewMenu: ViewModifier {
             Button {
                 UIPasteboard.general.string = "@\(user.screenName)"
             } label: {
-                Label("Copy Username", systemImage: "at")
+                Label("Copy Username", twitterIcon: .at)
             }
 
             if let url = user.profileURL {

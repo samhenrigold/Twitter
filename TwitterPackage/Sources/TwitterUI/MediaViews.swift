@@ -361,7 +361,7 @@ private struct MediaPage: View {
                 if let url = item.videoURL {
                     VideoPage(url: url, loops: item.kind == .gif, isSelected: isSelected, thumbnail: thumbnail)
                 } else {
-                    ContentUnavailableView("Video unavailable", systemImage: "video.slash")
+                    ContentUnavailableView("Video unavailable", twitterIcon: .videoOff)
                 }
             }
             .contentShape(.rect)

@@ -193,7 +193,10 @@ private struct PollChoiceRow: View {
                     .lineLimit(2)
 
                 if isSelected {
-                    Image(systemName: "checkmark.circle.fill")
+                    TwitterIcon.checkmarkCircle.image
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 16, height: 16)
                         .foregroundStyle(.tint)
                         .accessibilityLabel("Your vote")
                 }
