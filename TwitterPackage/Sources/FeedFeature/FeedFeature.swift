@@ -58,6 +58,22 @@ package struct FeedFeature {
             self.items = items
         }
 
+        /// A thread opened from one of its posts, which shows at once in its focused layout while the rest loads.
+        ///
+        /// A reply starts out joined to the conversation above it, as it will be once that arrives, so the focused
+        /// row's layout doesn't change under the reader when it does.
+        package static func thread(opening tweet: Tweet) -> Self {
+            var item = FeedTweet(tweet: tweet)
+            item.connectsAbove = !tweet.replyingTo.isEmpty
+            return Self(source: .thread(tweetID: tweet.id), items: [.tweet(item)])
+        }
+
+        /// Where a thread's focused post is: the rows before it are the conversation above it, the rest its replies.
+        /// The start when the post isn't (yet) in the thread.
+        var focusedIndex: Int {
+            focusedItemID.flatMap { items.index(id: $0) } ?? 0
+        }
+
         static let earlierConversationID = "cursor-top-conversation"
         /// How long a timeline stays fresh: coming back to its tab after longer than this loads what's new.
         static let staleInterval: TimeInterval = 120
@@ -375,7 +391,7 @@ package struct FeedFeature {
             case .previewShown(let tweet):
                 guard state.preview?.source != .thread(tweetID: tweet.id) else { return .none }
                 // Starting from the post itself, as an opened thread does, so it's on screen before the rest loads.
-                state.preview = State(source: .thread(tweetID: tweet.id), items: [.tweet(FeedTweet(tweet: tweet))])
+                state.preview = .thread(opening: tweet)
                 return .none
 
             case .quoteButtonTapped(let tweet):

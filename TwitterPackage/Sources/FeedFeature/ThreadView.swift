@@ -5,9 +5,11 @@ import TwitterUI
 
 /// A conversation that keeps its focused post pinned to the top of the viewport.
 ///
-/// Ancestors load in above the focused post after it's already on screen, so the scroll position is bound by item
-/// identity and re-aimed whenever the head of the thread changes, until the person scrolls on their own. A trailing
-/// spacer makes room for the focused post to reach the top even when it has few replies.
+/// The thread opens on the focused post alone, and the conversation above it loads in after it's on screen. The
+/// scroll position is bound to the focused post's identity, so rows arriving or resizing above it move the content
+/// offset rather than the post, until the person scrolls on their own. The conversation above is laid out eagerly,
+/// so its height is measured rather than estimated, and the focused post and its replies are at least a viewport
+/// tall, so the post can reach the top however few replies it has.
 package struct ThreadView: View {
     let store: StoreOf<FeedFeature>
     @Environment(\.columnBarPlacement) private var columnBarPlacement
@@ -17,39 +19,35 @@ package struct ThreadView: View {
     }
 
     @State private var hasUserScrolled = false
-    /// Positions measured during layout. Not observed: recording them must never re-render the thread, or the spacer
-    /// they size would move the rows that measured them, every frame (an update loop).
-    @State private var measurements = ThreadMeasurements()
     @State private var position = ScrollPosition(idType: FeedItem.ID.self)
-    @State private var spacerHeight: CGFloat = 0
     @State private var viewportHeight: CGFloat = 0
 
     package var body: some View {
         ScrollView {
             VStack(spacing: 0) {
-                LazyVStack(spacing: 0) {
-                    FeedRows(store: store)
-
-                    FeedFooter(store: store)
-                        .onGeometryChange(for: CGFloat.self) { proxy in
-                            proxy.frame(in: .named(ThreadView.coordinateSpace)).maxY
-                        } action: { maxY in
-                            measurements.contentMaxY = maxY
-                        }
+                // Rarely more than a few posts, and laid out in full: a lazy stack would estimate the heights of
+                // the ones it hasn't made yet, and correct them, moving the focused post, as they're scrolled to.
+                VStack(spacing: 0) {
+                    FeedRows(store: store, range: 0..<store.focusedIndex)
                 }
                 .scrollTargetLayout()
 
-                Color.clear
-                    .frame(height: spacerHeight)
-                    .transaction { $0.disablesAnimations = true }
+                LazyVStack(spacing: 0) {
+                    FeedRows(store: store, range: store.focusedIndex..<store.items.count)
+
+                    FeedFooter(store: store)
+                }
+                .scrollTargetLayout()
+                // Sized in layout, the moment the replies or the viewport change, never a frame behind them.
+                .frame(minHeight: viewportHeight, alignment: .top)
             }
             .readableContentWidth()
-            .coordinateSpace(.named(ThreadView.coordinateSpace))
-            .environment(\.threadMeasurements, measurements)
         }
         .scrollPosition($position, anchor: .top)
+        // The container is what's visible between the bars: the insets the scroll view runs under them by are
+        // outside it, already.
         .onScrollGeometryChange(for: CGFloat.self) { geometry in
-            geometry.containerSize.height - geometry.contentInsets.top - geometry.contentInsets.bottom
+            geometry.containerSize.height
         } action: { _, height in
             viewportHeight = height
         }
@@ -59,22 +57,6 @@ package struct ThreadView: View {
         .onChange(of: store.items.ids.first, initial: true) {
             guard !hasUserScrolled, let focusedID = store.focusedItemID else { return }
             position.scrollTo(id: focusedID, anchor: .top)
-        }
-        // Resized only when the thread's content or the viewport changes, after layout has settled.
-        .task(
-            id: SpacerInputs(
-                itemCount: store.items.count,
-                // Heights that change without the item count: the footer swapping its spinner for the end mark.
-                isLoading: store.isLoading,
-                viewportHeight: viewportHeight
-            )
-        ) {
-            // A superseded task stops here instead of resizing with stale inputs.
-            do {
-                try await Task.sleep(for: .milliseconds(100))
-                let height = measurements.spacerHeight(viewportHeight: viewportHeight)
-                if abs(height - spacerHeight) > 1 { spacerHeight = height }
-            } catch {}
         }
         .feedInteractions(store: store)
         .safeAreaBar(edge: .bottom) {
@@ -90,10 +72,6 @@ package struct ThreadView: View {
             }
         }
     }
-}
-
-extension ThreadView {
-    nonisolated static let coordinateSpace = "thread"
 }
 
 /// Along the bottom of a post's page, as in Twitter: your avatar and "Tweet your reply", which opens the reply.
@@ -145,28 +123,4 @@ extension FeedFeature.State {
     package var focusedTweet: Tweet? {
         focusedItemID.flatMap { items[id: $0]?.tweets.first }
     }
-}
-
-/// Written by the rows and footer as they lay out, read only when the spacer is resized.
-@MainActor
-final class ThreadMeasurements {
-    var contentMaxY: CGFloat?
-    var focusedMinY: CGFloat?
-
-    /// Room below the content for the focused post to reach the top of the viewport.
-    func spacerHeight(viewportHeight: CGFloat) -> CGFloat {
-        guard let contentMaxY, let focusedMinY else { return 0 }
-        return max(viewportHeight - (contentMaxY - focusedMinY), 0).rounded()
-    }
-}
-
-private struct SpacerInputs: Equatable {
-    var itemCount: Int
-    var isLoading: Bool
-    var viewportHeight: CGFloat
-}
-
-extension EnvironmentValues {
-    /// Where the focused row reports its position inside a thread; `nil` everywhere else.
-    @Entry var threadMeasurements: ThreadMeasurements? = nil
 }

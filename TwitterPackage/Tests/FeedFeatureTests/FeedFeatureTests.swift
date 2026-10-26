@@ -335,6 +335,54 @@ struct FeedFeatureTests {
     }
 
     @Test
+    func replyThreadOpensJoinedToTheConversationSoItsRowDoesntChangeWhenThatLoads() async {
+        let parent = Tweet.mocks[1]
+        let reply = {
+            var reply = Tweet.mocks[2]
+            reply.replyingTo = [parent.author.screenName]
+            return reply
+        }()
+        var joinedReply = FeedTweet(tweet: reply)
+        joinedReply.connectsAbove = true
+        var joinedParent = FeedTweet(tweet: parent)
+        joinedParent.connectsBelow = true
+        let store = TestStore(initialState: FeedFeature.State.thread(opening: reply)) {
+            FeedFeature()
+        } withDependencies: {
+            $0.date.now = Date(timeIntervalSince1970: 0)
+            $0[TwitterClient.self].feed = { _, _ in
+                FeedPage(
+                    items: [.tweet(FeedTweet(tweet: parent)), .tweet(FeedTweet(tweet: reply))],
+                    bottomCursor: nil,
+                    topCursor: nil
+                )
+            }
+        }
+        #expect(store.state.items == [.tweet(joinedReply)])
+        #expect(store.state.focusedIndex == 0)
+
+        await store.send(.task) {
+            $0.isLoading = true
+        }
+        await store.receive(\.pageResponse) {
+            $0.isLoading = false
+            $0.hasLoaded = true
+            $0.lastRefreshed = Date(timeIntervalSince1970: 0)
+            $0.items = [.tweet(joinedParent), .tweet(joinedReply)]
+        }
+        // The conversation above is laid out apart from the focused post and its replies.
+        #expect(store.state.focusedIndex == 1)
+    }
+
+    @Test
+    func threadOpenedFromAStandaloneTweetStartsUnjoined() {
+        let tweet = Tweet.mocks[0]
+        let state = FeedFeature.State.thread(opening: tweet)
+        #expect(state.source == .thread(tweetID: tweet.id))
+        #expect(state.items == [.tweet(FeedTweet(tweet: tweet))])
+    }
+
+    @Test
     func deletingAPostConfirmsThenRemovesItAndRestoresItIfTwitterRefuses() async {
         struct Refused: Error {}
         let mine = Tweet.mocks[1]

@@ -29,7 +29,15 @@ extension DependencyValues {
     mutating func useMockTwitterIfRequested() {
         #if DEBUG
             guard ProcessInfo.processInfo.arguments.contains("--mock-twitter") else { return }
-            self[TwitterClient.self] = .previewValue
+            var client = TwitterClient.previewValue
+            // `--slow-network`: pages take a while, to watch what's on screen while the rest loads in.
+            if ProcessInfo.processInfo.arguments.contains("--slow-network") {
+                client.feed = { [feed = client.feed] source, cursor in
+                    try await Task.sleep(for: .seconds(2))
+                    return try await feed(source, cursor)
+                }
+            }
+            self[TwitterClient.self] = client
             self[TimelineCache.self] = .previewValue
             // The mock account mustn't be remembered as the real one for the next launch. One shared in-memory store,
             // so every window still sees the same viewer.

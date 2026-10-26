@@ -219,12 +219,7 @@ extension Route {
         case .search(let query):
             .search(SearchFeature.State(submitting: query))
         case .thread(let tweet):
-            .thread(
-                FeedFeature.State(
-                    source: .thread(tweetID: tweet.id),
-                    items: [.tweet(FeedTweet(tweet: tweet))]
-                )
-            )
+            .thread(.thread(opening: tweet))
         case .threadID(let id):
             .thread(FeedFeature.State(source: .thread(tweetID: id)))
         case .userList(let source):

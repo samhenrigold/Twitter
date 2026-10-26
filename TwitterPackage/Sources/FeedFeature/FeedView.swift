@@ -100,9 +100,11 @@ extension FeedView where Header == EmptyView {
 /// One view per element (the divider lives inside the row) so the lazy stack's identity stays one-to-one with items.
 struct FeedRows: View {
     let store: StoreOf<FeedFeature>
+    /// Which of the feed's items: a thread lays out the conversation above its focused post apart from the rest.
+    var range: Range<Int>?
 
     var body: some View {
-        ForEach(store.items) { item in
+        ForEach(range.map { store.items.elements[$0] } ?? store.items.elements[...]) { item in
             FeedItemRow(
                 item: item,
                 engagement: item.tweets.first.map { store.engagements.engagement(for: $0) },
@@ -122,7 +124,6 @@ private struct FeedItemRow: View {
     let quotedEngagement: Engagement?
     let isFocused: Bool
     let store: StoreOf<FeedFeature>
-    @Environment(\.threadMeasurements) private var threadMeasurements
     @Environment(\.tweetMetrics) private var metrics
     @SharedReader(.postRowStyle) private var style
 
@@ -155,12 +156,6 @@ private struct FeedItemRow: View {
             if !runsThreadLineThrough {
                 TwitterDivider()
             }
-        }
-        .onGeometryChange(for: CGFloat?.self) { proxy in
-            isFocused ? proxy.frame(in: .named(ThreadView.coordinateSpace)).minY : nil
-        } action: { minY in
-            // Keeps the last value once the lazy stack releases the row.
-            if let minY { threadMeasurements?.focusedMinY = minY }
         }
     }
 }
