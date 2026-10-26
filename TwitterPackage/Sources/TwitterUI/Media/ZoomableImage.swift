@@ -50,6 +50,8 @@ final class ZoomingScrollView: UIScrollView, UIScrollViewDelegate {
         contentInsetAdjustmentBehavior = .never
         decelerationRate = .fast
         imageView.contentMode = .scaleAspectFit
+        // The viewer is the one place a photo gets its full HDR headroom.
+        imageView.preferredImageDynamicRange = .high
         addSubview(imageView)
 
         let doubleTap = UITapGestureRecognizer(target: self, action: #selector(doubleTapped(_:)))

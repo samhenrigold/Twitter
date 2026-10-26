@@ -14,12 +14,14 @@ public struct TwitterScenes: Scene {
     public var body: some Scene {
         WindowGroup {
             AppView()
+                .limitsImageHeadroom()
         }
 
         WindowGroup("Twitter", for: WindowRoute.self) { $route in
             if let route {
                 RouteWindowRoot(route: route)
                     .id(route)
+                    .limitsImageHeadroom()
                     .asyncImageURLSession(.images)
             } else {
                 ContentUnavailableView("Nothing to Show", twitterIcon: .newWindow)

@@ -170,6 +170,8 @@ struct ColumnScreen<Content: View>: View {
             }
         }
         .alreadyHereShake(trigger: stack.shake.count, isActive: stack.shake.column == id)
+        // A hosting controller of its own: the window's limit doesn't reach in.
+        .limitsImageHeadroom()
     }
 
     private var screen: some View {

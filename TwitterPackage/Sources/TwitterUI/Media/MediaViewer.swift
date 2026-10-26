@@ -88,6 +88,8 @@ package struct MediaViewer: View {
             }
         )
         .colorScheme(.dark)
+        // The one place photos get their full HDR headroom (everywhere else limits it).
+        .allowedDynamicRange(.high)
         .toolbarVisibility(showsChrome ? .automatic : .hidden, for: .statusBar)
         .persistentSystemOverlays(showsChrome ? .automatic : .hidden)
         // A zoomed photo pans instead of starting the swipe-down dismissal.

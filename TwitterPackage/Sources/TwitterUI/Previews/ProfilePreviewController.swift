@@ -10,6 +10,7 @@ struct LoadingProfilePreview: View {
 
     var body: some View {
         ProfilePreviewCard(user: user ?? ProfileLookup.remembered(screenName), screenName: screenName)
+            .limitsImageHeadroom()
             .task(id: screenName) {
                 if user == nil, let stored = await ProfileLookup.stored(screenName) {
                     user = stored
