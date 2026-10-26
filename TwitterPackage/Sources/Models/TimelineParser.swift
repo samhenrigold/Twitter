@@ -319,7 +319,9 @@ package enum TimelineParser {
         tweet.media = mediaEntities.compactMap(media(from:))
         tweet.card = card(from: result["card"] as? JSON)
 
-        if let replyTo = legacy["in_reply_to_screen_name"] as? String {
+        // Only a reply to a Tweet: Twitter also names the account a standalone Tweet starts by mentioning
+        // ("@X hey"), with no Tweet to reply to.
+        if legacy["in_reply_to_status_id_str"] is String, let replyTo = legacy["in_reply_to_screen_name"] as? String {
             let mentions = ((legacy["entities"] as? JSON)?["user_mentions"] as? [JSON] ?? []).compactMap {
                 $0["screen_name"] as? String
             }

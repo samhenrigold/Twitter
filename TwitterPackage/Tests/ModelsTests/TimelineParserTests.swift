@@ -368,6 +368,20 @@ struct TimelineParserTests {
 
     // MARK: Fixtures
 
+    @Test
+    func onlyRepliesToATweetSayReplyingTo() throws {
+        // A standalone Tweet that starts with a mention: Twitter names the account, but there's no Tweet replied to.
+        var mention = tweetResult(id: "20", text: "@x hey what's up")
+        var legacy = mention["legacy"] as! [String: Any]
+        legacy["in_reply_to_screen_name"] = "x"
+        mention["legacy"] = legacy
+        #expect(try #require(TimelineParser.tweet(from: mention)).replyingTo.isEmpty)
+
+        legacy["in_reply_to_status_id_str"] = "19"
+        mention["legacy"] = legacy
+        #expect(try #require(TimelineParser.tweet(from: mention)).replyingTo == ["x"])
+    }
+
     private func tweetResult(id: String, text: String) -> [String: Any] {
         [
             "__typename": "Tweet",
