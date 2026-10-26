@@ -30,6 +30,7 @@ package struct FeedFeature {
         /// The thread a long-pressed post opens to, live in its context menu's preview while the menu is up. Presented
         /// here rather than in a store of the preview's own so it loads with this feed's dependencies (the mock client
         /// under `--mock-twitter`, in tests), and so its loading is cancelled when the menu goes away.
+        @Presents var alert: AlertState<Action.Alert>?
         @Presents var preview: FeedFeature.State?
         /// The item at the top of the screen when scrolling last stopped, to return to when the feed's view is rebuilt
         /// (folding or unfolding the device).
@@ -88,12 +89,16 @@ package struct FeedFeature {
     }
 
     package enum Action {
+        case alert(PresentationAction<Alert>)
         case authorTapped(User)
         case blockButtonTapped(User)
         case blockFailed(userID: String, isBlocking: Bool)
         case bookmarkButtonTapped(Tweet)
         case cachedPageLoaded(FeedPage, topItemID: FeedItem.ID?)
         case delegate(ContentDelegate)
+        case deleteButtonTapped(Tweet)
+        /// Twitter refused to delete a post: the rows taken out for it go back where they were.
+        case deleteFailed(removed: [Int: FeedItem], message: String)
         case isAtTopChanged(Bool)
         case likeButtonTapped(Tweet)
         /// Who liked a post. Only the viewer's own posts list anyone, since Twitter made likes private.
@@ -122,6 +127,10 @@ package struct FeedFeature {
         case task
         case topItemRestored
         case tweetTapped(Tweet)
+
+        package enum Alert: Equatable {
+            case confirmDelete(tweetID: Tweet.ID)
+        }
     }
 
     enum CancelID: Hashable {
@@ -152,6 +161,52 @@ package struct FeedFeature {
                 } catch: { _, send in
                     await send(.blockFailed(userID: user.id, isBlocking: !isBlocking))
                 }
+
+            case .alert(.presented(.confirmDelete(let tweetID))):
+                // Out of the timeline at once; back where it was if Twitter refuses.
+                var removed: [Int: FeedItem] = [:]
+                for (index, item) in state.items.enumerated().reversed()
+                where item.tweets.first?.id == tweetID {
+                    removed[index] = item
+                    state.items.remove(at: index)
+                }
+                return .run { [removed] _ in
+                    try await client.deleteTweet(tweetID)
+                } catch: { [removed] error, send in
+                    await send(.deleteFailed(removed: removed, message: error.localizedDescription))
+                }
+
+            case .alert:
+                return .none
+
+            case .deleteButtonTapped(let tweet):
+                state.alert = AlertState {
+                    TextState("Delete Tweet?")
+                } actions: {
+                    ButtonState(role: .destructive, action: .confirmDelete(tweetID: tweet.id)) {
+                        TextState("Delete")
+                    }
+                    ButtonState(role: .cancel) {
+                        TextState("Cancel")
+                    }
+                } message: {
+                    TextState(
+                        "This can't be undone. It will be removed from your profile, the timelines of the accounts "
+                            + "that follow you, and search results."
+                    )
+                }
+                return .none
+
+            case .deleteFailed(let removed, let message):
+                for (index, item) in removed.sorted(by: { $0.key < $1.key }) where state.items[id: item.id] == nil {
+                    state.items.insert(item, at: min(index, state.items.count))
+                }
+                state.alert = AlertState {
+                    TextState("Couldn't delete Tweet")
+                } message: {
+                    TextState(message)
+                }
+                return .none
 
             case .blockFailed(let userID, let isBlocking):
                 state.setBlocking(isBlocking, userID: userID)
@@ -367,6 +422,7 @@ package struct FeedFeature {
                 return .send(.delegate(.open(.thread(tweet))))
             }
         }
+        .ifLet(\.$alert, action: \.alert)
         .ifLet(\.$preview, action: \.preview) {
             FeedFeature()
         }

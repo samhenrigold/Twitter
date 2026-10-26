@@ -208,7 +208,7 @@ private struct FeedInteractions: ViewModifier {
     /// About how far the system's refresh control is pulled before it triggers.
     private static let refreshTriggerDistance: CGFloat = 80
 
-    let store: StoreOf<FeedFeature>
+    @Bindable var store: StoreOf<FeedFeature>
     /// The pull catching, releasing, then the timeline landing: Twitter for iPad's "psst", "psst" and "pop". The
     /// refresh control plays its own haptics.
     @State private var isPastRefreshTrigger = false
@@ -227,6 +227,7 @@ private struct FeedInteractions: ViewModifier {
                 isPastRefreshTrigger = isPast
             }
             .task { store.send(.task) }
+            .alert($store.scope(state: \.alert, action: \.alert))
             .environment(
                 \.openURL,
                 OpenURLAction { url in

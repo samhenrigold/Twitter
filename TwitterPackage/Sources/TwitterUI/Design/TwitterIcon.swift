@@ -54,6 +54,7 @@ package enum TwitterIcon: String, Sendable {
     case shareStroke = "share_stroke"
     case signOut = "sign_out"
     /// The bird.
+    case trash
     case twitter
     /// The verified badge, for tinting in the account's color.
     case verified

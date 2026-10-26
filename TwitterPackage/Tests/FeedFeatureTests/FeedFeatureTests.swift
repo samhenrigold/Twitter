@@ -281,6 +281,35 @@ struct FeedFeatureTests {
     }
 
     @Test
+    func deletingAPostConfirmsThenRemovesItAndRestoresItIfTwitterRefuses() async {
+        struct Refused: Error {}
+        let mine = Tweet.mocks[1]
+        let other = Tweet.mocks[0]
+        var state = FeedFeature.State(
+            source: .home(following: false),
+            items: [.tweet(FeedTweet(tweet: other)), .tweet(FeedTweet(tweet: mine))]
+        )
+        state.hasLoaded = true
+        let store = TestStore(initialState: state) {
+            FeedFeature()
+        } withDependencies: {
+            $0[TwitterClient.self].deleteTweet = { id in
+                #expect(id == mine.id)
+                throw Refused()
+            }
+        }
+        store.exhaustivity = .off(showSkippedAssertions: false)
+
+        await store.send(.deleteButtonTapped(mine))
+        #expect(store.state.alert != nil)
+        await store.send(.alert(.presented(.confirmDelete(tweetID: mine.id))))
+        #expect(store.state.items.map(\.id) == [FeedItem.tweet(FeedTweet(tweet: other)).id])
+        await store.receive(\.deleteFailed)
+        #expect(store.state.items.map(\.id) == state.items.map(\.id))
+        #expect(store.state.alert != nil)
+    }
+
+    @Test
     func showMoreFailureKeepsRow() async {
         struct Failure: Error {}
         let cursor = ShowMoreCursor(id: "cursor-showmore-1", cursor: "more")

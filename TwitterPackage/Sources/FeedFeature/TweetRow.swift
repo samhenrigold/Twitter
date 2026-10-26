@@ -606,7 +606,13 @@ package struct TweetMenu: View {
             Label("View @\(tweet.author.screenName)", twitterIcon: .personStroke)
         }
 
-        if tweet.author.id != viewer?.id {
+        if tweet.author.id == viewer?.id {
+            Button(role: .destructive) {
+                store.send(.deleteButtonTapped(tweet))
+            } label: {
+                Label("Delete Tweet", twitterIcon: .trash)
+            }
+        } else {
             Button(role: tweet.author.isBlocking ? nil : .destructive) {
                 store.send(.blockButtonTapped(tweet.author))
             } label: {
@@ -641,6 +647,14 @@ package struct TweetMenu: View {
             UIPasteboard.general.url = tweet.url
         } label: {
             Label("Copy Link", twitterIcon: .link)
+        }
+
+        if !tweet.text.isEmpty {
+            Button {
+                UIPasteboard.general.string = tweet.text
+            } label: {
+                Label("Copy Text", twitterIcon: .copyStroke)
+            }
         }
     }
 }
