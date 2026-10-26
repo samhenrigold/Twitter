@@ -18,8 +18,10 @@ package struct PostTextPiece: Hashable, Sendable {
 ///    later splits or restyles part of one, except Twitter's own bold/italic ranges.
 /// 2. **Twitter styles**: the Unicode-scalar bold/italic ranges cut pieces at their edges. They're the only styling:
 ///    no punctuation is read as Markdown.
-/// 3. **Character references**: `&amp;`-style escapes left in plain text are decoded.
-/// 4. **Truncation**, when a character limit is set, at a word boundary and never inside an entity.
+/// 3. **Truncation**, when a character limit is set, at a word boundary and never inside an entity.
+///
+/// Text arrives decoded: character references (`&amp;`) are the models' to decode, once, so a Tweet that says
+/// `&lt;` shows `&lt;`.
 package enum PostTextParser {
     package static func pieces(for input: PostTextInput) -> [PostTextPiece] {
         var pieces = styledPieces(input)
@@ -37,7 +39,7 @@ package enum PostTextParser {
         let tokens = EntityScanner.tokens(in: text, links: input.links, tags: input.tags)
         guard !input.styles.isEmpty else {
             return tokens.map { token in
-                piece(String(scalars[token.range]), entity: token.entity, emphasis: [])
+                PostTextPiece(text: String(scalars[token.range]), entity: token.entity)
             }
         }
 
@@ -65,17 +67,14 @@ package enum PostTextParser {
                         emphasis.formUnion(style.emphasis)
                     }
                 }
-                pieces.append(piece(String(scalars[start..<end]), entity: token.entity, emphasis: emphasis))
+                pieces.append(
+                    PostTextPiece(text: String(scalars[start..<end]), entity: token.entity, emphasis: emphasis))
             }
         }
         return pieces
     }
 
     // MARK: Shared passes
-
-    private static func piece(_ text: String, entity: PostEntity?, emphasis: PostTextEmphasis) -> PostTextPiece {
-        PostTextPiece(text: entity == nil ? CharacterReferences.decode(text) : text, entity: entity, emphasis: emphasis)
-    }
 
     /// Keeps whole pieces up to `limit` characters, cuts the plain piece that crosses it at a nearby word boundary,
     /// and drops an entity that crosses it rather than show half of one.

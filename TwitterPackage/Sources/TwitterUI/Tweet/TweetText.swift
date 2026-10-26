@@ -16,7 +16,7 @@ package struct TweetText: View {
     @Environment(\.tweetMetrics) private var metrics
 
     /// Free text with its links (community notes, bios), read like a post: Markdown punctuation stays literal.
-    package init(links: [String: URL], text: String, font: Font? = nil) {
+    package init(text: String, links: [TextLink] = [], font: Font? = nil) {
         input = PostTextInput(text: text, links: links)
         self.font = font
     }

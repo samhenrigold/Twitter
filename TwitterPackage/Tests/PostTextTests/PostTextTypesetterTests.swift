@@ -25,8 +25,8 @@ struct PostTextTypesetterTests {
     @Test
     func knownLinksWinOverBarePatterns() throws {
         let destination = try #require(URL(string: "https://example.com/a/very/long/path"))
-        let typeset = PostTextTypesetter.build(
-            PostTextInput(text: "read example.com/a/very… now", links: ["example.com/a/very…": destination]))
+        let placed = TextLink(range: 5..<24, url: destination)
+        let typeset = PostTextTypesetter.build(PostTextInput(text: "read example.com/a/very… now", links: [placed]))
 
         #expect(entities(typeset) == [Run("example.com/a/very…", .url(destination))])
         #expect(link(of: "example.com/a/very…", in: typeset) == destination)
@@ -55,9 +55,19 @@ struct PostTextTypesetterTests {
     }
 
     @Test
-    func characterReferencesDecodeInPlainTextOnly() {
-        let typeset = PostTextTypesetter.build(PostTextInput(text: "Tom &amp; Jerry &lt;3 &#39;hi&#x27; &bogus; @a"))
-        #expect(String(typeset.attributedString.characters) == "Tom & Jerry <3 'hi' &bogus; @a")
+    func textShowsAsWritten() {
+        // The models decode character references; what reaches the typesetter is what the Tweet says.
+        let text = "Tom &amp; Jerry &lt;3 &#39;hi&#x27; @a"
+        #expect(String(PostTextTypesetter.build(PostTextInput(text: text)).attributedString.characters) == text)
+    }
+
+    @Test
+    func bareDomainsLinkAsTwitterLinksThem() throws {
+        let typeset = PostTextTypesetter.build(PostTextInput(text: "docs at swift.org/documentation, not file.txt"))
+        #expect(
+            entities(typeset) == [
+                Run("swift.org/documentation", .url(try #require(URL(string: "https://swift.org/documentation"))))
+            ])
     }
 
     @Test
@@ -117,9 +127,9 @@ struct PostTextTypesetterTests {
             "**word**", "*word*", "`x`", "__word__ and _word_", "~~gone~~", "2*3*4", "# not a heading",
             "[docs](https://swift.org)", "\\*escaped\\*"
         ],
-        [[:], ["swift.org": URL(string: "https://swift.org")!]] as [[String: URL]]
+        [[], [TextLink(range: 0..<1, url: URL(string: "https://swift.org")!)]] as [[TextLink]]
     )
-    func markdownPunctuationStaysLiteral(text: String, links: [String: URL]) {
+    func markdownPunctuationStaysLiteral(text: String, links: [TextLink]) {
         let typeset = PostTextTypesetter.build(PostTextInput(text: text, links: links))
         #expect(typeset.attributedString.runs.allSatisfy { $0.inlinePresentationIntent == nil })
         #expect(String(typeset.attributedString.characters) == text)

@@ -28,54 +28,48 @@ extension TimelineParser {
             let author = user(fromResult: result["core"])
         else { return nil }
 
-        var links: [String: URL] = [:]
-        var text: String
         let noteResult = ((result["note_tweet"] as? JSON)?["note_tweet_results"] as? JSON)?["result"] as? JSON
-
         let mediaEntities =
             ((legacy["extended_entities"] as? JSON)?["media"] as? [JSON])
             ?? ((legacy["entities"] as? JSON)?["media"] as? [JSON]) ?? []
+        let quoted = includeQuote ? (result["quoted_status_result"] as? JSON)?["result"] as? JSON : nil
 
-        var styles: [TextStyleRange] = []
         var entities = legacy["entities"] as? JSON
+        var source = legacy["full_text"] as? String ?? ""
+        var styles: [TextStyleRange] = []
         if let note = noteResult, let noteText = note["text"] as? String {
             entities = (note["entity_set"] as? JSON) ?? entities
-            let urls = (entities?["urls"] as? [JSON]) ?? []
-            var edits: [(String, String)] = []
-            for entry in urls {
-                guard let short = entry["url"] as? String else { continue }
-                let display = (entry["display_url"] as? String) ?? short
-                edits.append((short, display))
-                if let expanded = (entry["expanded_url"] as? String).flatMap(URL.init(string:)) {
-                    links[display] = expanded
-                }
-            }
-            for media in mediaEntities {
-                if let shortURL = media["url"] as? String { edits.append((shortURL, "")) }
-            }
-            edits += htmlEntities
+            source = noteText
             let tags = ((note["richtext"] as? JSON)?["richtext_tags"] as? [JSON]) ?? []
-            (text, styles) = rewrite(noteText, replacing: edits, styles: tags.compactMap(textStyle(from:)))
-        } else {
-            text = legacy["full_text"] as? String ?? ""
-            if let range = legacy["display_text_range"] as? [Int], range.count == 2 {
-                let scalars = Array(text.unicodeScalars)
-                let lower = min(max(range[0], 0), scalars.count)
-                let upper = min(max(range[1], lower), scalars.count)
-                var view = String.UnicodeScalarView()
-                view.append(contentsOf: scalars[lower..<upper])
-                text = String(view)
-            }
-            let urls = ((legacy["entities"] as? JSON)?["urls"] as? [JSON]) ?? []
-            text = expandURLs(in: text, urls: urls, links: &links)
-            for media in mediaEntities {
-                if let shortURL = media["url"] as? String { text = text.replacingOccurrences(of: shortURL, with: "") }
-            }
-            text = decodeEntities(text).trimmingCharacters(in: .whitespacesAndNewlines)
+            styles = tags.compactMap(textStyle(from:))
+        } else if let range = legacy["display_text_range"] as? [Int], range.count == 2 {
+            let scalars = Array(source.unicodeScalars)
+            let lower = min(max(range[0], 0), scalars.count)
+            let upper = min(max(range[1], lower), scalars.count)
+            var view = String.UnicodeScalarView()
+            view.append(contentsOf: scalars[lower..<upper])
+            source = String(view)
         }
 
-        var tweet = Tweet(id: id, author: author, text: text, links: links)
-        tweet.styles = styles
+        // One pass over the text: t.co links become their display text (and links), media links and the quote's
+        // permalink go, and character references decode, so a link's range is known from the edit that made it.
+        let urls = (entities?["urls"] as? [JSON]) ?? []
+        var replacements = urls.compactMap { entry -> Replacement? in
+            guard let short = entry["url"] as? String else { return nil }
+            let expanded = (entry["expanded_url"] as? String).flatMap(URL.init(string:))
+            return Replacement(short, with: (entry["display_url"] as? String) ?? short, link: expanded)
+        }
+        replacements += mediaEntities.compactMap { ($0["url"] as? String).map { Replacement($0, with: "") } }
+        if quoted != nil, let permalink = (legacy["quoted_status_permalink"] as? JSON)?["url"] as? String,
+            !urls.contains(where: { $0["url"] as? String == permalink })
+        {
+            replacements.append(Replacement(permalink, with: ""))
+        }
+        replacements += htmlEntities
+        let rewritten = rewrite(source, replacing: replacements, styles: styles)
+
+        var tweet = Tweet(id: id, author: author, text: rewritten.text, links: rewritten.links)
+        tweet.styles = rewritten.styles
         tweet.hashtags = ((entities?["hashtags"] as? [JSON]) ?? []).compactMap {
             ($0["text"] as? String).map { "#\($0)" }
         }
@@ -107,12 +101,12 @@ extension TimelineParser {
             let mentions = ((legacy["entities"] as? JSON)?["user_mentions"] as? [JSON] ?? []).compactMap {
                 $0["screen_name"] as? String
             }
-            var names = [replyTo] + mentions.filter { $0 != replyTo && !text.contains("@\($0)") }
+            var names = [replyTo] + mentions.filter { $0 != replyTo && !tweet.text.contains("@\($0)") }
             names = Array(NSOrderedSet(array: names)) as? [String] ?? names
             tweet.replyingTo = Array(names.prefix(3))
         }
 
-        if includeQuote, let quoted = (result["quoted_status_result"] as? JSON)?["result"] as? JSON {
+        if let quoted {
             if let quotedTweet = Self.tweet(from: quoted, includeQuote: false) {
                 tweet.quoted = [quotedTweet]
             } else {
@@ -120,55 +114,72 @@ extension TimelineParser {
                 tweet.quotedTombstone =
                     tombstone(from: quoted, id: quotedID) ?? Tombstone(id: quotedID, reason: .unavailable)
             }
-            if let permalink = (legacy["quoted_status_permalink"] as? JSON)?["url"] as? String {
-                tweet.text = tweet.text.replacingOccurrences(of: permalink, with: "").trimmingCharacters(
-                    in: .whitespacesAndNewlines)
-            }
         }
         if tweet.card != nil || !tweet.quoted.isEmpty || tweet.quotedTombstone != nil {
-            // The card/quote already shows the trailing link; drop it from the text when it is the last token.
-            if let last = tweet.links.first(where: {
-                tweet.text.hasSuffix($0.key)
-                    && ($0.value.host?.contains("x.com") == true || $0.value.host?.contains("twitter.com") == true)
-            }) {
-                tweet.text = String(tweet.text.dropLast(last.key.count)).trimmingCharacters(in: .whitespacesAndNewlines)
-            }
+            dropTrailingTwitterLink(from: &tweet)
         }
         return tweet
     }
 
-    private static func expandURLs(in text: String, urls: [JSON], links: inout [String: URL]) -> String {
-        var text = text
-        for entry in urls {
-            guard let short = entry["url"] as? String else { continue }
-            let display = (entry["display_url"] as? String) ?? short
-            text = text.replacingOccurrences(of: short, with: display)
-            if let expanded = (entry["expanded_url"] as? String).flatMap(URL.init(string:)) {
-                links[display] = expanded
-            }
+    /// The card or quote already shows a trailing link to a Tweet; the text drops it when it is the last thing there.
+    private static func dropTrailingTwitterLink(from tweet: inout Tweet) {
+        let scalarCount = tweet.text.unicodeScalars.count
+        guard
+            let index = tweet.links.firstIndex(where: {
+                $0.range.upperBound == scalarCount
+                    && ($0.url.host?.contains("x.com") == true || $0.url.host?.contains("twitter.com") == true)
+            })
+        else { return }
+        let start = tweet.links[index].range.lowerBound
+        var view = String.UnicodeScalarView()
+        view.append(contentsOf: tweet.text.unicodeScalars.prefix(start))
+        while let last = view.last, last.properties.isWhitespace { view.removeLast() }
+        let end = view.count
+        tweet.text = String(view)
+        tweet.links.remove(at: index)
+        tweet.styles = tweet.styles.compactMap { style in
+            guard style.range.lowerBound < end else { return nil }
+            var style = style
+            style.range = style.range.lowerBound..<min(style.range.upperBound, end)
+            return style
         }
-        return text
     }
 
+    /// A substring of the API's text to replace, and the link the replacement shows, if it is one.
+    private struct Replacement {
+        let target: String
+        let replacement: String
+        let link: URL?
+
+        init(_ target: String, with replacement: String, link: URL? = nil) {
+            self.target = target
+            self.replacement = replacement
+            self.link = link
+        }
+    }
+
+    /// Character references Twitter leaves in text. Decoded here, once: the typesetter shows text as it is.
     private static let htmlEntities = [
-        ("&lt;", "<"), ("&gt;", ">"), ("&quot;", "\""), ("&#39;", "'"), ("&amp;", "&")
+        Replacement("&lt;", with: "<"), Replacement("&gt;", with: ">"), Replacement("&quot;", with: "\""),
+        Replacement("&#39;", with: "'"), Replacement("&amp;", with: "&")
     ]
 
-    /// Replaces substrings of `text` while keeping `styles` (Unicode-scalar ranges) pointing at the same characters,
-    /// then trims surrounding whitespace.
-    static func rewrite(
-        _ text: String, replacing replacements: [(String, String)], styles: [TextStyleRange]
-    ) -> (String, [TextStyleRange]) {
+    /// Replaces substrings of `text` while keeping `styles` and `links` (Unicode-scalar ranges) on the same
+    /// characters, links each replacement that carries one, then trims surrounding whitespace.
+    private static func rewrite(
+        _ text: String, replacing replacements: [Replacement], styles: [TextStyleRange] = [], links: [TextLink] = []
+    ) -> (text: String, styles: [TextStyleRange], links: [TextLink]) {
         let scalars = Array(text.unicodeScalars)
-        var edits: [(range: Range<Int>, replacement: [Unicode.Scalar])] = []
-        for (target, replacement) in replacements.sorted(by: { $0.0.unicodeScalars.count > $1.0.unicodeScalars.count })
-        where !target.isEmpty {
-            let needle = Array(target.unicodeScalars)
+        var edits: [(range: Range<Int>, replacement: Replacement)] = []
+        for replacement in replacements.sorted(by: {
+            $0.target.unicodeScalars.count > $1.target.unicodeScalars.count
+        }) where !replacement.target.isEmpty {
+            let needle = Array(replacement.target.unicodeScalars)
             var index = 0
             while index + needle.count <= scalars.count {
                 let range = index..<(index + needle.count)
                 if scalars[range].elementsEqual(needle), !edits.contains(where: { $0.range.overlaps(range) }) {
-                    edits.append((range, Array(replacement.unicodeScalars)))
+                    edits.append((range, replacement))
                     index += needle.count
                 } else {
                     index += 1
@@ -178,13 +189,13 @@ extension TimelineParser {
         edits.sort { $0.range.lowerBound < $1.range.lowerBound }
 
         var output: [Unicode.Scalar] = []
-        var applied: [(old: Range<Int>, new: Range<Int>)] = []
+        var applied: [(old: Range<Int>, new: Range<Int>, link: URL?)] = []
         var cursor = 0
         for edit in edits {
             output += scalars[cursor..<edit.range.lowerBound]
             let start = output.count
-            output += edit.replacement
-            applied.append((edit.range, start..<output.count))
+            output += edit.replacement.replacement.unicodeScalars
+            applied.append((edit.range, start..<output.count, edit.replacement.link))
             cursor = edit.range.upperBound
         }
         output += scalars[cursor...]
@@ -206,17 +217,32 @@ extension TimelineParser {
         let leading = output.prefix { $0.properties.isWhitespace }.count
         let trailing = output.count == leading ? 0 : output.reversed().prefix { $0.properties.isWhitespace }.count
         let trimmed = Array(output[leading..<(output.count - trailing)])
-        let mapped = styles.compactMap { style -> TextStyleRange? in
-            let lower = min(max(map(style.range.lowerBound, isUpper: false) - leading, 0), trimmed.count)
-            let upper = min(max(map(style.range.upperBound, isUpper: true) - leading, lower), trimmed.count)
-            guard lower < upper else { return nil }
+        /// A range of the output, in the trimmed text; `nil` when nothing of it is left.
+        func clamp(_ range: Range<Int>) -> Range<Int>? {
+            let lower = min(max(range.lowerBound - leading, 0), trimmed.count)
+            let upper = min(max(range.upperBound - leading, lower), trimmed.count)
+            return lower < upper ? lower..<upper : nil
+        }
+        let mappedStyles = styles.compactMap { style -> TextStyleRange? in
+            guard
+                let range = clamp(
+                    map(style.range.lowerBound, isUpper: false)..<map(style.range.upperBound, isUpper: true))
+            else { return nil }
             var style = style
-            style.range = lower..<upper
+            style.range = range
             return style
+        }
+        let carried = links.compactMap { link in
+            clamp(map(link.range.lowerBound, isUpper: false)..<map(link.range.upperBound, isUpper: true)).map {
+                TextLink(range: $0, url: link.url)
+            }
+        }
+        let made = applied.compactMap { edit in
+            edit.link.flatMap { url in clamp(edit.new).map { TextLink(range: $0, url: url) } }
         }
         var view = String.UnicodeScalarView()
         view.append(contentsOf: trimmed)
-        return (String(view), mapped)
+        return (String(view), mappedStyles, (carried + made).sorted { $0.range.lowerBound < $1.range.lowerBound })
     }
 
     private static func textStyle(from tag: JSON) -> TextStyleRange? {
@@ -234,25 +260,23 @@ extension TimelineParser {
         guard let text = (subtitle?["text"] as? String) ?? (pivot["subtitle"] as? String), !text.isEmpty else {
             return nil
         }
-        var links: [String: URL] = [:]
-        let scalars = Array(text.unicodeScalars)
-        for entity in subtitle?["entities"] as? [JSON] ?? [] {
+        let scalarCount = text.unicodeScalars.count
+        let links = (subtitle?["entities"] as? [JSON] ?? []).compactMap { entity -> TextLink? in
             let from = int(entity["fromIndex"])
             let to = int(entity["toIndex"])
-            guard from >= 0, to > from, to <= scalars.count,
+            guard from >= 0, to > from, to <= scalarCount,
                 let url = ((entity["ref"] as? JSON)?["url"] as? String).flatMap(URL.init(string:))
-            else { continue }
-            var view = String.UnicodeScalarView()
-            view.append(contentsOf: scalars[from..<to])
-            links[String(view)] = url
+            else { return nil }
+            return TextLink(range: from..<to, url: url)
         }
+        let rewritten = rewrite(text, replacing: htmlEntities, links: links)
         let footer = pivot["footer"] as? JSON
         return CommunityNote(
             id: (pivot["note"] as? JSON)?["rest_id"] as? String,
             title: (pivot["title"] as? String) ?? "Readers added context they thought people might want to know",
             shortTitle: pivot["shorttitle"] as? String,
-            text: decodeEntities(text),
-            links: links,
+            text: rewritten.text,
+            links: rewritten.links,
             // The footer names the service ("people who use X"); the app always says Twitter.
             footer: ((footer?["text"] as? String) ?? (pivot["footer"] as? String))?.replacingOccurrences(
                 of: #"\bX\b"#, with: "Twitter", options: .regularExpression),

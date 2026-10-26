@@ -196,6 +196,23 @@ struct APIPostFixture: CustomTestStringConvertible, Sendable {
         APIPostFixture(
             name: "character references",
             fullText: "#cartoons Tom &amp; Jerry &lt;3",
-            entities: [.hashtag("cartoons", 0..<9)])
+            entities: [.hashtag("cartoons", 0..<9)]),
+        // The Tweet says "&lt;div&gt;" literally: decoded once, by the models, it stays that way.
+        APIPostFixture(
+            name: "escaped character references",
+            fullText: "Use &amp;lt;div&amp;gt; for this #html",
+            entities: [.hashtag("html", 33..<38)]),
+        // Two links Twitter shortens to the same display text still go to their own pages.
+        APIPostFixture(
+            name: "links sharing a display text",
+            fullText: "Two stories: https://t.co/one111 and https://t.co/two222",
+            entities: [
+                .url(
+                    "https://t.co/one111", display: "nytimes.com/2026/10/26/tec…",
+                    expanded: "https://www.nytimes.com/2026/10/26/technology/one.html", 13..<32),
+                .url(
+                    "https://t.co/two222", display: "nytimes.com/2026/10/26/tec…",
+                    expanded: "https://www.nytimes.com/2026/10/26/technology/two.html", 37..<56)
+            ])
     ]
 }

@@ -6,8 +6,8 @@ package struct CommunityNote: Hashable, Codable, Sendable {
     package var title: String
     package var shortTitle: String?
     package var text: String
-    /// Substring of `text` → destination, for the links inside the note.
-    package var links: [String: URL] = [:]
+    /// Where `text` links out, and where each link goes.
+    package var links: [TextLink] = []
     package var footer: String?
     package var destinationURL: URL?
 
@@ -16,7 +16,7 @@ package struct CommunityNote: Hashable, Codable, Sendable {
         title: String,
         shortTitle: String? = nil,
         text: String,
-        links: [String: URL] = [:],
+        links: [TextLink] = [],
         footer: String? = nil,
         destinationURL: URL? = nil
     ) {

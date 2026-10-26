@@ -4,8 +4,8 @@ import Models
 /// Everything that decides how a piece of post text is typeset; the typesetter's cache is keyed on it by equality.
 package struct PostTextInput: Hashable, Sendable {
     package var text: String
-    /// Substring of `text` → destination (a post's display URLs).
-    package var links: [String: URL]
+    /// Where `text` links out (a post's display URLs), in Unicode-scalar offsets.
+    package var links: [TextLink]
     /// Hashtags and cashtags (with their `#`/`$`) Twitter recognized; others are still found by pattern.
     package var tags: [String]
     /// Bold/italic ranges in Unicode-scalar offsets of `text`: Twitter's own rich text, the only styling there is.
@@ -20,7 +20,7 @@ package struct PostTextInput: Hashable, Sendable {
     /// ``PostTextInput/needsTruncation(_:limit:)``.
     package init(
         text: String,
-        links: [String: URL] = [:],
+        links: [TextLink] = [],
         tags: [String] = [],
         styles: [TextStyleRange] = [],
         characterLimit: Int? = nil

@@ -145,7 +145,7 @@ extension Tweet {
             title: "Readers added context they thought people might want to know",
             shortTitle: "Readers added context",
             text: "Lunar samples returned by Apollo missions are made of rock, not cheese. nasa.gov/moon",
-            links: ["nasa.gov/moon": URL(string: "https://www.nasa.gov/moon")!],
+            links: [TextLink(range: 72..<85, url: URL(string: "https://www.nasa.gov/moon")!)],
             footer: "Context is written by people who use Twitter, and they choose which notes appear.",
             destinationURL: URL(string: "https://x.com/i/birdwatch")
         )

@@ -20,7 +20,7 @@ package struct CommunityNoteCard: View {
             }
             .font(.subheadline.weight(.semibold))
 
-            TweetText(links: note.links, text: note.text, font: .subheadline)
+            TweetText(text: note.text, links: note.links, font: .subheadline)
 
             if let footer = note.footer {
                 Text(footer)

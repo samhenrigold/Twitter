@@ -4,8 +4,8 @@ package struct Tweet: Identifiable, Hashable, Codable, Sendable {
     package var id: String
     package var author: User
     package var text: String
-    /// Display URL → destination, for linking the shortened URLs shown in `text`.
-    package var links: [String: URL] = [:]
+    /// Where `text` shows a link (its display URL) and where each goes.
+    package var links: [TextLink] = []
     package var createdAt: Date?
     package var replyCount = 0
     package var repostCount = 0

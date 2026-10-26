@@ -1,6 +1,7 @@
 import ComposableArchitecture
 import Foundation
 import Models
+import PostText
 import Routing
 import TwitterClient
 import TwitterUI
@@ -36,11 +37,13 @@ package struct ComposeFeature {
             self.draft = draft
         }
 
-        static let characterLimit = 280
+        /// The most a Tweet may weigh, by Twitter's count.
+        static let characterLimit = TwitterTextConfiguration.current.maxWeightedTweetLength
         /// Twitter takes up to four photos, or one GIF or video on its own.
         static let photoLimit = 4
 
-        var remainingCharacters: Int { Self.characterLimit - text.count }
+        /// Characters left by Twitter's count: CJK and emoji weigh two, every link the 23 of its t.co link.
+        var remainingCharacters: Int { TweetLength(text).remaining }
         var hasText: Bool { !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
         /// Drafts are offered on an empty new Tweet, as Twitter's composer does.
         var offersDrafts: Bool { !drafts.isEmpty && !hasText && draft.replyingTo == nil && draft.quoting == nil }
@@ -50,13 +53,13 @@ package struct ComposeFeature {
                 && followUps.allSatisfy { $0.isPostable }
         }
 
-        /// The handle being typed after an @ at the end of the text, if any ("@poin" gives "poin").
+        /// The handle being typed after an @ at the end of the text, if any ("@poin" gives "poin"), by the rules a
+        /// finished mention links by.
         var mentionQuery: String? {
-            guard let at = text.lastIndex(of: "@") else { return nil }
-            if at > text.startIndex, let before = text[..<at].last, before.isLetter || before.isNumber { return nil }
-            let handle = text[text.index(after: at)...]
-            guard !handle.isEmpty, handle.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "_" }) else { return nil }
-            return String(handle)
+            guard let mention = TwitterTextExtractor.partialMention(endingAt: text.endIndex, in: text),
+                case .mention(let screenName, _) = mention.kind
+            else { return nil }
+            return screenName
         }
 
         /// How many more photos fit; none once a GIF or video is attached.
@@ -70,7 +73,7 @@ package struct ComposeFeature {
         package let id: UUID
         var text = ""
 
-        var remainingCharacters: Int { State.characterLimit - text.count }
+        var remainingCharacters: Int { TweetLength(text).remaining }
         var isPostable: Bool {
             remainingCharacters >= 0 && !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }

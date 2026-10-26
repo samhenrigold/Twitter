@@ -82,7 +82,7 @@ struct TimelineParserTests {
         #expect(note.id == "99")
         #expect(note.shortTitle == "Readers added context")
         #expect(note.text == "It isn't true. https://t.co/abc")
-        #expect(note.links == ["https://t.co/abc": URL(string: "https://example.com/source")!])
+        #expect(note.links == [TextLink(range: 15..<31, url: URL(string: "https://example.com/source")!)])
         #expect(note.footer == "Context is written by people who use Twitter, and they choose which notes appear.")
         #expect(note.destinationURL == URL(string: "https://x.com/i/birdwatch/n/99"))
     }
@@ -119,7 +119,7 @@ struct TimelineParserTests {
         ]
         let tweet = try #require(TimelineParser.tweet(from: result))
         #expect(tweet.text == "Hi a.co bold & italic #Swift $AAPL")
-        #expect(tweet.links == ["a.co": URL(string: "https://a.co/full")!])
+        #expect(tweet.links == [TextLink(range: 3..<7, url: URL(string: "https://a.co/full")!)])
         #expect(tweet.hashtags == ["#Swift"])
         #expect(tweet.cashtags == ["$AAPL"])
         let scalars = Array(tweet.text.unicodeScalars)

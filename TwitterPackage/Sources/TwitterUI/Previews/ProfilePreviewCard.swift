@@ -61,7 +61,7 @@ package struct ProfilePreviewCard: View {
                 ProfilePreviewIdentity(user: user, screenName: screenName)
 
                 if let bio = user?.bio, !bio.isEmpty {
-                    TweetText(links: [:], text: bio, font: metrics.font(.subtext1))
+                    TweetText(text: bio, font: metrics.font(.subtext1))
                         .lineLimit(3)
                         .environment(\.postTextPreviewsEnabled, false)
                 }

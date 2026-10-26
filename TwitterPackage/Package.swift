@@ -66,6 +66,7 @@ let package = Package(
         .target(
             name: "ComposeFeature",
             dependencies: [
+                "PostText",
                 "Routing",
                 "TwitterUI",
                 "TwitterClient",
@@ -200,6 +201,9 @@ let package = Package(
             name: "PostTextTests",
             dependencies: [
                 "PostText"
+            ],
+            resources: [
+                .copy("Resources/TwitterText")
             ]
         ),
         .target(
