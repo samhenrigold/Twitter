@@ -5,6 +5,9 @@ import TweetEngagement
 import TwitterUI
 
 package struct TweetRow: View {
+    /// The corner dog-ear on liked and Retweeted posts: off for now.
+    private static let showsDogEar = false
+
     let item: FeedTweet
     let engagement: Engagement
     /// The quoted post's, for its own menu.
@@ -54,7 +57,7 @@ package struct TweetRow: View {
         .foregroundStyle(.twitterPrimary)
         .overlay(alignment: .topTrailing) {
             ZStack(alignment: .topTrailing) {
-                if engagement.like.isOn || engagement.repost.isOn {
+                if Self.showsDogEar, engagement.like.isOn || engagement.repost.isOn {
                     DogEar(isLiked: engagement.like.isOn, isReposted: engagement.repost.isOn)
                         .transition(.scale(scale: 0, anchor: .topTrailing))
                 }
