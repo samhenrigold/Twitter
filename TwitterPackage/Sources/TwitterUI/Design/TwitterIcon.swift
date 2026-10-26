@@ -23,6 +23,7 @@ package enum TwitterIcon: String, Sendable {
     case externalLinkStroke = "external_link_stroke"
     /// Following, and replies limited to people followed.
     case followingStroke = "following_stroke"
+    case gif = "gif_pill"
     /// Open in the browser.
     case globe
     case heart
@@ -42,6 +43,7 @@ package enum TwitterIcon: String, Sendable {
     case notificationsStroke = "notifications_stroke"
     case person
     case personStroke = "person_stroke"
+    case pause
     case pin
     case play
     case plus
@@ -56,6 +58,9 @@ package enum TwitterIcon: String, Sendable {
     case settings
     case shareStroke = "share_stroke"
     case signOut = "sign_out"
+    /// A video's sound, on and off; ``mute`` and ``unmute`` are for accounts.
+    case sound
+    case soundOff = "sound_off"
     /// The bird.
     case trash
     case twitter

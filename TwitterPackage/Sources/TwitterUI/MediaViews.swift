@@ -1,5 +1,3 @@
-import AVKit
-import Combine
 import Dependencies
 import ImagePipeline
 import Models
@@ -57,6 +55,18 @@ package struct MediaGrid: View {
         .fullScreenCover(isPresented: $isViewerPresented) {
             MediaViewer(media: media, selection: $viewerSelection, tweet: tweet, zoomNamespace: zoomNamespace)
         }
+        #if DEBUG
+            // `--open-media <Tweet ID>`: opens that Tweet's first item in the viewer, for capturing it without tapping.
+            .task {
+                let arguments = ProcessInfo.processInfo.arguments
+                guard let index = arguments.firstIndex(of: "--open-media"), index + 1 < arguments.count,
+                    let tweet, arguments[index + 1] == tweet.id, let first = media.first
+                else { return }
+                try? await Task.sleep(for: .seconds(1))
+                viewerSelection = first.id
+                isViewerPresented = true
+            }
+        #endif
     }
 
     /// Rows of two, each identified by its first item.
@@ -65,7 +75,10 @@ package struct MediaGrid: View {
     }
 
     private func tile(_ item: Media) -> MediaTile {
-        MediaTile(item: item, count: media.count, link: tweet?.mediaURL(of: item), zoomNamespace: zoomNamespace) {
+        MediaTile(
+            item: item, count: media.count, link: tweet?.mediaURL(of: item), playsInline: !isViewerPresented,
+            zoomNamespace: zoomNamespace
+        ) {
             viewerSelection = item.id
             isViewerPresented = true
         }
@@ -88,12 +101,21 @@ private struct MediaBorder: ViewModifier {
 
 /// One tappable tile of a `MediaGrid`, and the source the viewer zooms out of. Long-pressing it previews the item
 /// alone with its menu (see ``View/mediaPreview(_:link:openTitle:open:)``).
+///
+/// Videos and GIFs show their play button. With autoplay on in Settings (off by default), they play muted on a loop
+/// while they're in view, as Twitter's timeline autoplays them, unless video autoplay is off in Accessibility.
 private struct MediaTile: View {
     let item: Media
     let count: Int
     let link: URL?
+    /// Off while the viewer is showing it, so the two never play at once.
+    let playsInline: Bool
     let zoomNamespace: Namespace.ID
     let open: () -> Void
+
+    @AppStorage(MediaAutoplay.settingKey) private var autoplaysMedia = false
+
+    private var autoplays: Bool { autoplaysMedia && UIAccessibility.isVideoAutoplayEnabled }
 
     var body: some View {
         Button(action: open) {
@@ -103,19 +125,20 @@ private struct MediaTile: View {
                     RemoteImage(url: tile.url, pointSize: tile.pointSize)
                 }
                 .overlay {
-                    if item.kind != .photo {
-                        Group {
-                            if item.kind == .gif {
-                                Image(systemName: "play.circle")
-                                    .font(.title)
-                            } else {
-                                TwitterIconView(.play, size: 28)
-                            }
-                        }
-                        .foregroundStyle(.mediaGlyph)
-                        .padding(14)
-                        .glassEffect(.regular, in: .circle)
+                    if item.kind != .photo, let url = item.inlineVideoURL ?? item.videoURL {
+                        InlineVideo(url: url, autoplays: autoplays && playsInline)
                     }
+                }
+                .overlay {
+                    if item.kind != .photo, !autoplays {
+                        TwitterIconView(.play, size: 28)
+                            .foregroundStyle(.mediaGlyph)
+                            .padding(14)
+                            .glassEffect(.regular, in: .circle)
+                    }
+                }
+                .overlay(alignment: .bottomLeading) {
+                    MediaBadge(item: item)
                 }
                 .clipped()
                 .contentShape(.rect)
@@ -136,6 +159,34 @@ private struct MediaTile: View {
     }
 }
 
+/// What a video or GIF tile says in its corner: how long the video runs, or that it's a GIF.
+private struct MediaBadge: View {
+    let item: Media
+
+    var body: some View {
+        switch item.kind {
+        case .photo:
+            EmptyView()
+        case .gif:
+            TwitterIconView(.gif, size: 24)
+                .foregroundStyle(.mediaGlyph)
+                .padding(8)
+                .accessibilityHidden(true)
+        case .video:
+            if let durationMillis = item.durationMillis {
+                Text(VideoControls.format(Double(durationMillis) / 1000))
+                    .font(.caption2.weight(.semibold).monospacedDigit())
+                    .foregroundStyle(.mediaGlyph)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(.mediaScrim, in: .capsule)
+                    .padding(8)
+                    .accessibilityHidden(true)
+            }
+        }
+    }
+}
+
 /// Full-screen media with the post alongside it.
 ///
 /// It zooms out of the tapped tile and back into whichever tile matches the page it's on when closed, by button or by
@@ -152,6 +203,9 @@ package struct MediaViewer: View {
     /// Where to zoom back to if the selection clears before the dismissal finishes animating.
     @State private var lastSelection: Media.ID?
     @State private var showsChrome = true
+    /// Every video's and GIF's player, made as its page first shows and kept while the viewer is open, so paging back
+    /// resumes where it was.
+    @State private var playbacks = ViewerPlaybacks()
     @Environment(\.dismiss) private var dismiss
     /// The timeline's link handling, inherited from the post this viewer was opened from.
     @Environment(\.openURL) private var openURL
@@ -174,6 +228,7 @@ package struct MediaViewer: View {
                     MediaCaption(
                         media: media,
                         selection: selection,
+                        playback: media.first { $0.id == selection }.flatMap(playbacks.playback(for:)),
                         showsChrome: showsChrome,
                         tweet: tweet
                     )
@@ -181,7 +236,7 @@ package struct MediaViewer: View {
                 .overlayArrangementEdge(.trailing)
                 .overlayArrangementEdge(.bottom)
             } secondary: {
-                MediaPager(media: media, selection: $selection, isZoomed: $isZoomed) {
+                MediaPager(media: media, selection: $selection, isZoomed: $isZoomed, playbacks: playbacks) {
                     withAnimation(.snappy) { showsChrome.toggle() }
                 }
                 .overlayArrangementEdge(.trailing)
@@ -195,9 +250,12 @@ package struct MediaViewer: View {
                     Button("Close", twitterIcon: .close, role: .close) { dismiss() }
                 }
 
-                if let item = media.first(where: { $0.id == selection }), item.kind == .photo {
-                    ToolbarItem(placement: .primaryAction) {
-                        ShareLink(item: item.fullSizeURL)
+                if let item = media.first(where: { $0.id == selection }) {
+                    // A photo as itself; a video or GIF as its place in the Tweet, as Twitter shares them.
+                    if let url = item.kind == .photo ? item.fullSizeURL : tweet?.mediaURL(of: item) ?? item.videoURL {
+                        ToolbarItem(placement: .primaryAction) {
+                            ShareLink(item: url)
+                        }
                     }
                 }
             }
@@ -223,7 +281,10 @@ package struct MediaViewer: View {
         .navigationTransition(.zoom(sourceID: zoomSourceID, in: zoomNamespace))
         .onChange(of: selection, initial: true) {
             if let selection { lastSelection = selection }
+            // Only the page in view plays; the rest hold their place.
+            playbacks.play(media.first { $0.id == selection })
         }
+        .onDisappear { playbacks.stop() }
         .onChange(of: isZoomed) {
             if isZoomed { withAnimation(.snappy) { showsChrome = false } }
         }
@@ -235,6 +296,7 @@ private struct MediaPager: View {
     let media: [Media]
     @Binding var selection: Media.ID?
     @Binding var isZoomed: Bool
+    let playbacks: ViewerPlaybacks
     let toggleChrome: () -> Void
 
     @Dependency(ImageLoader.self) private var loader
@@ -250,6 +312,7 @@ private struct MediaPager: View {
                     MediaPage(
                         item: item,
                         isSelected: item.id == selection,
+                        playback: playbacks.playback(for: item),
                         thumbnail: FeedImages.mediaTile(item, count: media.count),
                         isZoomed: $isZoomed,
                         toggleChrome: toggleChrome
@@ -291,6 +354,8 @@ private enum ViewerImages {
 private struct MediaCaption: View {
     let media: [Media]
     let selection: Media.ID?
+    /// The selected video's player, for its controls.
+    let playback: VideoPlayback?
     let showsChrome: Bool
     let tweet: Tweet?
     @Environment(\.overlayArrangementZIndex) private var zIndex
@@ -300,6 +365,10 @@ private struct MediaCaption: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
+            if let playback, let index, media[index].kind == .video {
+                VideoControls(playback: playback)
+            }
+
             if let tweet {
                 HStack(spacing: 10) {
                     Avatar(user: tweet.author, size: 36)
@@ -347,6 +416,7 @@ private struct MediaCaption: View {
 private struct MediaPage: View {
     let item: Media
     let isSelected: Bool
+    let playback: VideoPlayback?
     let thumbnail: (url: URL, pointSize: CGFloat)
     @Binding var isZoomed: Bool
     let toggleChrome: () -> Void
@@ -363,14 +433,16 @@ private struct MediaPage: View {
             )
         case .gif, .video:
             Group {
-                if let url = item.videoURL {
-                    VideoPage(url: url, loops: item.kind == .gif, isSelected: isSelected, thumbnail: thumbnail)
+                if let playback, !playback.failed {
+                    VideoPage(playback: playback, isGIF: item.kind == .gif, thumbnail: thumbnail)
                 } else {
                     ContentUnavailableView("Video unavailable", twitterIcon: .videoOff)
                 }
             }
             .contentShape(.rect)
             .onTapGesture(perform: toggleChrome)
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel(item.altText ?? (item.kind == .gif ? "GIF" : "Video"))
         }
     }
 }
@@ -419,47 +491,79 @@ private struct PhotoPage: View {
     }
 }
 
+/// A video or GIF over its poster: the tile's frame shows until the first video frame is ready, so the zoom
+/// transition never lands on black. A paused video shows Twitter's play button in the middle.
 private struct VideoPage: View {
-    let url: URL
-    let loops: Bool
-    let isSelected: Bool
+    let playback: VideoPlayback
+    let isGIF: Bool
     let thumbnail: (url: URL, pointSize: CGFloat)
-    @State private var isPlaying = false
-    @State private var player: AVQueuePlayer?
-    @State private var looper: AVPlayerLooper?
 
     var body: some View {
         ZStack {
-            VideoPlayer(player: player)
-
-            // The tile's frame until the first video frame, so the zoom transition never lands on black.
             RemoteImage(url: thumbnail.url, pointSize: thumbnail.pointSize, contentMode: .fit) {
                 Color.clear
             }
-            .opacity(isPlaying ? 0 : 1)
-            .allowsHitTesting(false)
-        }
-        .task {
-            let player = AVQueuePlayer()
-            if loops {
-                looper = AVPlayerLooper(player: player, templateItem: AVPlayerItem(url: url))
-            } else {
-                player.insert(AVPlayerItem(url: url), after: nil)
-            }
-            self.player = player
-            if isSelected { player.play() }
-            for await status in player.publisher(for: \.timeControlStatus).values {
-                if status == .playing {
-                    withAnimation(.easeOut(duration: 0.2)) { isPlaying = true }
-                    break
+            .opacity(playback.isReadyForDisplay ? 0 : 1)
+
+            VideoSurface(playback)
+                .opacity(playback.isReadyForDisplay ? 1 : 0)
+
+            if playback.isBuffering {
+                ProgressView()
+                    .tint(.mediaGlyph)
+            } else if !isGIF, !playback.isPlaying {
+                Button {
+                    playback.play()
+                } label: {
+                    TwitterIconView(.play, size: 32)
+                        .foregroundStyle(.mediaGlyph)
+                        .padding(20)
+                        .glassEffect(.regular.interactive(), in: .circle)
                 }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Play")
             }
         }
-        // The pager realizes neighbouring pages early; only the page in view plays.
-        .onChange(of: isSelected) {
-            if isSelected { player?.play() } else { player?.pause() }
+    }
+}
+
+/// The viewer's players, one per video or GIF, made the first time a page or the caption asks.
+@MainActor
+final class ViewerPlaybacks {
+    private var playbacks: [Media.ID: VideoPlayback] = [:]
+    /// Once the viewer has closed: the pages it redraws while it animates away get no new players, and play no more.
+    private var isStopped = false
+
+    /// The full-quality variant with sound for a video; a GIF has none, and loops.
+    func playback(for item: Media) -> VideoPlayback? {
+        guard item.kind != .photo, let url = item.videoURL ?? item.inlineVideoURL else { return nil }
+        guard !isStopped else { return playbacks[item.id] }
+        if let playback = playbacks[item.id] { return playback }
+        let playback = VideoPlayback(url: url, loops: item.kind == .gif, isMuted: item.kind == .gif)
+        playbacks[item.id] = playback
+        return playback
+    }
+
+    /// Plays `item` (with sound, if it has any) and pauses every other one.
+    func play(_ item: Media?) {
+        guard !isStopped else { return }
+        let selected = item.flatMap(playback(for:))
+        for playback in playbacks.values where playback !== selected {
+            playback.pause()
         }
-        .onDisappear { player?.pause() }
+        guard let selected else { return }
+        if !selected.isMuted { VideoAudio.playWithSound() }
+        selected.play()
+    }
+
+    /// Stops everything as the viewer closes, handing the audio back.
+    func stop() {
+        for playback in playbacks.values {
+            playback.invalidate()
+        }
+        // Kept, paused on their last frame, for the zoom back into the tile.
+        isStopped = true
+        VideoAudio.playSilently()
     }
 }
 
@@ -467,4 +571,9 @@ extension Array {
     package subscript(safe index: Int) -> Element? {
         indices.contains(index) ? self[index] : nil
     }
+}
+
+/// Whether timeline videos and GIFs play by themselves (Settings; off by default).
+package enum MediaAutoplay {
+    package static let settingKey = "autoplaysMedia"
 }

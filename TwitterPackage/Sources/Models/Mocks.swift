@@ -66,6 +66,48 @@ extension Tweet {
         return tweet
     }
 
+    /// A video, for playback inline and in the viewer (`--mock-media`). Public samples stand in for `video.twimg.com`:
+    /// Apple's HLS example as the full-screen variant with sound, a short MP4 as the inline one.
+    package static var mockVideo: Tweet {
+        var tweet = Tweet.mock(id: "151", text: "Tap to watch with sound.", secondsAgo: 420)
+        tweet.media = [
+            Media(
+                id: "151-1",
+                kind: .video,
+                previewURL: URL(string: "https://picsum.photos/id/1018/1280/720")!,
+                videoURL: URL(
+                    string:
+                        "https://devstreaming-cdn.apple.com/videos/streaming/examples/bipbop_16x9/bipbop_16x9_variant.m3u8"
+                ),
+                inlineVideoURL: URL(
+                    string: "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4"),
+                width: 1280,
+                height: 720,
+                altText: "A test pattern counting up the seconds.",
+                durationMillis: 1_800_000
+            )
+        ]
+        return tweet
+    }
+
+    /// A GIF, which Twitter serves as a silent MP4 that loops (`--mock-media`).
+    package static var mockGIF: Tweet {
+        var tweet = Tweet.mock(id: "152", text: "GIFs loop, silently.", secondsAgo: 480)
+        let flower = URL(string: "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4")
+        tweet.media = [
+            Media(
+                id: "152-1",
+                kind: .gif,
+                previewURL: URL(string: "https://picsum.photos/id/1080/1280/720")!,
+                videoURL: flower,
+                inlineVideoURL: flower,
+                width: 1280,
+                height: 720
+            )
+        ]
+        return tweet
+    }
+
     package static let mocks: [Tweet] = [
         .mock(
             id: "100",
@@ -368,9 +410,10 @@ extension FeedPage {
         items.insert(item(.mockOpenPoll), at: 5)
         items.insert(.tombstone(Tombstone(id: "tweet-109", text: "This Tweet was deleted by the Tweet author.")), at: 6)
         items += [item(.mockCommunityNote), item(.mockRestricted), item(.mockQuotingDeleted), item(.mockFinalPoll)]
-        // `--mock-media`: photos to open in the viewer, kept out of the default set so snapshots stay put.
+        // `--mock-media`: a video, a GIF and photos to open in the viewer, kept out of the default set so snapshots stay
+        // put.
         if ProcessInfo.processInfo.arguments.contains("--mock-media") {
-            items.insert(item(.mockPhotos), at: 0)
+            items.insert(contentsOf: [item(.mockVideo), item(.mockGIF), item(.mockPhotos)], at: 0)
         }
         return FeedPage(items: items, bottomCursor: nil, topCursor: nil)
     }

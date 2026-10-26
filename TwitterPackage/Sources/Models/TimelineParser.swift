@@ -549,18 +549,20 @@ package enum TimelineParser {
             default: .photo
             }
         let videoInfo = entry["video_info"] as? JSON
-        let variants = (videoInfo?["variants"] as? [JSON] ?? []).filter {
-            ($0["content_type"] as? String) == "video/mp4"
-        }
+        let allVariants = videoInfo?["variants"] as? [JSON] ?? []
+        let variants = allVariants.filter { ($0["content_type"] as? String) == "video/mp4" }
         let best = variants.max { int($0["bitrate"]) < int($1["bitrate"]) }
         let sorted = variants.sorted { int($0["bitrate"]) < int($1["bitrate"]) }
         let inline = sorted.last { int($0["bitrate"]) <= 2_200_000 } ?? sorted.first
+        // Some videos (broadcasts, some newer uploads) come only as an HLS playlist, which AVPlayer plays as well.
+        let stream = allVariants.first { ($0["content_type"] as? String) == "application/x-mpegURL" }
+        let videoURL = ((best ?? stream)?["url"] as? String).flatMap(URL.init(string:))
         return Media(
             id: entry["id_str"] as? String ?? preview.absoluteString,
             kind: kind,
             previewURL: preview,
-            videoURL: (best?["url"] as? String).flatMap(URL.init(string:)),
-            inlineVideoURL: (inline?["url"] as? String).flatMap(URL.init(string:)),
+            videoURL: videoURL,
+            inlineVideoURL: (inline?["url"] as? String).flatMap(URL.init(string:)) ?? videoURL,
             width: double(size?["width"]),
             height: double(size?["height"]),
             altText: entry["ext_alt_text"] as? String,

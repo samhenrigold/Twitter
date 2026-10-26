@@ -1,4 +1,3 @@
-import AVFoundation
 import CoreTransferable
 import Dependencies
 import ImagePipeline
@@ -48,7 +47,7 @@ private struct MediaPreviewMenu: ViewModifier {
 
             Divider()
 
-            if MediaLibrary.canSave, media.kind == .photo || media.videoURL != nil {
+            if MediaLibrary.canSave, media.kind == .photo || MediaLibrary.videoFile(of: media) != nil {
                 Button {
                     Task { await MediaLibrary.save(media) }
                 } label: {
@@ -125,7 +124,7 @@ struct MediaPreviewImage: View {
             }
 
             if media.kind != .photo, let url = media.inlineVideoURL ?? media.videoURL {
-                LoopingVideo(url: url)
+                InlineVideo(url: url, waitsForScrollVisibility: false)
             }
         }
         .frame(width: size.width, height: size.height)
@@ -140,35 +139,6 @@ struct MediaPreviewImage: View {
         [FeedImages.mediaTile(media, count: 1), FeedImages.mediaTile(media, count: 2)].map {
             ImageRequest(url: $0.url, pointSize: $0.pointSize, scale: displayScale)
         } + [ImageRequest(url: media.previewURL(variant: "small"), pointSize: 200, scale: displayScale)]
-    }
-}
-
-/// A muted loop with no controls, for previews.
-private struct LoopingVideo: UIViewRepresentable {
-    let url: URL
-
-    func makeUIView(context: Context) -> PlayerView {
-        let view = PlayerView()
-        let player = AVQueuePlayer()
-        player.isMuted = true
-        // The poster frame shows until the first video frame is ready.
-        view.playerLayer.videoGravity = .resizeAspectFill
-        view.playerLayer.player = player
-        view.looper = AVPlayerLooper(player: player, templateItem: AVPlayerItem(url: url))
-        player.play()
-        return view
-    }
-
-    func updateUIView(_ view: PlayerView, context: Context) {}
-
-    static func dismantleUIView(_ view: PlayerView, coordinator: ()) {
-        view.playerLayer.player?.pause()
-    }
-
-    final class PlayerView: UIView {
-        var looper: AVPlayerLooper?
-        override static var layerClass: AnyClass { AVPlayerLayer.self }
-        var playerLayer: AVPlayerLayer { layer as! AVPlayerLayer }
     }
 }
 
@@ -236,6 +206,11 @@ enum MediaLibrary {
         return components.url ?? media.previewURL
     }
 
+    /// The video as one MP4 to download; a video that only streams (an HLS playlist) has none.
+    static func videoFile(of media: Media) -> URL? {
+        [media.videoURL, media.inlineVideoURL].lazy.compactMap { $0 }.first { $0.pathExtension.lowercased() == "mp4" }
+    }
+
     /// Adds the photo, or the video (a GIF is one too), to the library, asking for add-only access the first time.
     @concurrent static func save(_ media: Media) async {
         let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
@@ -248,7 +223,7 @@ enum MediaLibrary {
                     PHAssetCreationRequest.forAsset().addResource(with: .photo, data: data, options: nil)
                 }
             case .gif, .video:
-                guard let videoURL = media.videoURL else { return }
+                guard let videoURL = videoFile(of: media) else { return }
                 let (download, _) = try await URLSession.shared.download(from: videoURL)
                 // Photos reads the type from the extension.
                 let file = URL.temporaryDirectory.appending(path: "\(UUID().uuidString).mp4")

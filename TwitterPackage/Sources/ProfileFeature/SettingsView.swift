@@ -9,6 +9,7 @@ import TwitterUI
 struct SettingsView: View {
     let store: StoreOf<ProfileFeature>
     @Shared(.postRowStyle) private var postRowStyle
+    @Shared(.appStorage(MediaAutoplay.settingKey)) private var autoplaysMedia = false
     @Shared(.appStorage(ClassicSound.settingKey)) private var playsSounds = true
     @Environment(\.dismiss) private var dismiss
 
@@ -48,6 +49,14 @@ struct SettingsView: View {
                     Text("Display and Sound")
                 } footer: {
                     Text("Sounds play as you pull a timeline to refresh, as in Twitter for iPad.")
+                }
+
+                Section {
+                    Toggle("Autoplay Videos and GIFs", isOn: Binding($autoplaysMedia))
+                } header: {
+                    Text("Media")
+                } footer: {
+                    Text("Videos and GIFs in timelines play muted as they scroll into view.")
                 }
 
                 Section("About") {
