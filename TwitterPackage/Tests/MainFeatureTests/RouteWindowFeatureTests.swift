@@ -86,3 +86,25 @@ struct RouteWindowFeatureTests {
         }
     }
 }
+
+@MainActor
+struct NotificationBadgeTests {
+    @Test
+    func unreadNotificationsBadgeTheTabUntilItsOpened() async {
+        let clock = TestClock()
+        let store = TestStore(initialState: MainFeature.State(viewer: .mock)) {
+            MainFeature()
+        } withDependencies: {
+            $0.continuousClock = clock
+            $0[TwitterClient.self].unreadNotificationCount = { 4 }
+        }
+        store.exhaustivity = .off
+
+        let task = await store.send(.task)
+        await store.receive(\.unreadNotificationsResponse)
+        #expect(store.state.unreadNotifications == 4)
+        await store.send(.binding(.set(\.selectedTab, .notifications)))
+        #expect(store.state.unreadNotifications == 0)
+        await task.cancel()
+    }
+}

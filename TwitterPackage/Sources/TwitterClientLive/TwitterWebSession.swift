@@ -490,6 +490,12 @@ actor TwitterWebSession {
             from: try await rest("/i/api/1.1/search/typeahead.json?" + (components.percentEncodedQuery ?? "")))
     }
 
+    /// The unread notifications count the web client badges its Notifications tab with.
+    func unreadNotificationCount() async throws -> Int {
+        let json = try await rest("/i/api/2/badge_count/badge_count.json?supports_ntab_urt=1") as? [String: Any]
+        return (json?["ntab_unread_count"] as? Int) ?? 0
+    }
+
     /// What's trending, from the web client's Explore page.
     func trends() async throws -> [Trend] {
         TimelineParser.trends(from: try await graphQL("ExplorePage", variables: [:]))

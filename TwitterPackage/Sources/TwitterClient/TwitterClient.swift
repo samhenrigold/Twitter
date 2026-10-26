@@ -35,6 +35,8 @@ package struct TwitterClient: Sendable {
     package var trends: @Sendable () async throws -> [Trend]
     /// Accounts matching what's been typed after an @, for completing a mention.
     package var typeahead: @Sendable (_ query: String) async throws -> [User]
+    /// How many notifications are unread, as the web client's badge shows.
+    package var unreadNotificationCount: @Sendable () async throws -> Int
     package var user: @Sendable (_ screenName: String) async throws -> User
     package var users: @Sendable (_ source: UserListSource, _ cursor: String?) async throws -> UserPage
 }
@@ -64,6 +66,7 @@ extension TwitterClient: TestDependencyKey {
                         || $0.name.localizedCaseInsensitiveContains(query)
                 }
             },
+            unreadNotificationCount: { 3 },
             user: { screenName in
                 User.mocks.first { $0.screenName.lowercased() == screenName.lowercased() } ?? .mock
             },

@@ -16,6 +16,8 @@ package struct MainFeature {
         var notifications = TabStack.State.notifications
         var profile: TabStack.State
         var selectedTab = Tab.home
+        /// Unread notifications, badging the Notifications tab until it's opened.
+        var unreadNotifications = 0
         package var viewer: User
 
         package init(viewer: User) {
@@ -41,6 +43,8 @@ package struct MainFeature {
         case home(TabStack.Action)
         case notifications(TabStack.Action)
         case profile(TabStack.Action)
+        case task
+        case unreadNotificationsResponse(Int)
 
         package enum Delegate {
             case signedOut
@@ -48,6 +52,14 @@ package struct MainFeature {
     }
 
     @Dependency(TwitterClient.self) var client
+    @Dependency(\.continuousClock) var clock
+
+    /// How often the Notifications badge checks for more.
+    static let unreadPollInterval: Duration = .seconds(180)
+
+    enum CancelID {
+        case unreadPolling
+    }
 
     package init() {}
 
@@ -77,6 +89,26 @@ package struct MainFeature {
                         await send(.delegate(.signedOut))
                     }
                 }
+
+            case .binding(\.selectedTab):
+                if state.selectedTab == .notifications { state.unreadNotifications = 0 }
+                return .none
+
+            case .task:
+                return .run { send in
+                    while true {
+                        if let count = try? await client.unreadNotificationCount() {
+                            await send(.unreadNotificationsResponse(count))
+                        }
+                        try await clock.sleep(for: Self.unreadPollInterval)
+                    }
+                }
+                .cancellable(id: CancelID.unreadPolling, cancelInFlight: true)
+
+            case .unreadNotificationsResponse(let count):
+                // Already reading them: nothing to badge.
+                state.unreadNotifications = state.selectedTab == .notifications ? 0 : count
+                return .none
 
             case .binding, .bookmarks, .compose, .delegate, .explore, .home, .notifications, .profile:
                 return .none

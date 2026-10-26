@@ -20,7 +20,7 @@ package struct MainView: View {
     }
 
     package var body: some View {
-        MainTabs(store: store, selection: store.selectedTab)
+        MainTabs(store: store, selection: store.selectedTab, unreadNotifications: store.unreadNotifications)
             // The tab bar controller keeps its tabs clear of the bars itself.
             .ignoresSafeArea()
             .sheet(item: $store.scope(state: \.compose, action: \.compose)) { composeStore in
@@ -33,6 +33,7 @@ package struct MainView: View {
                 #endif
             }
             .onChange(of: store.selectedTab) { savedTab = store.selectedTab }
+            .task { await store.send(.task).finish() }
     }
 
     private func tabStack(_ tab: MainFeature.Tab) -> StoreOf<TabStack> {
@@ -53,6 +54,7 @@ private struct MainTabs: UIViewControllerRepresentable {
     let store: StoreOf<MainFeature>
     /// Read here so choosing a tab elsewhere (state restoration, launch arguments) updates the controller.
     let selection: MainFeature.Tab
+    let unreadNotifications: Int
 
     func makeCoordinator() -> Coordinator {
         Coordinator(store: store)
@@ -73,6 +75,8 @@ private struct MainTabs: UIViewControllerRepresentable {
 
     func updateUIViewController(_ controller: UITabBarController, context: Context) {
         context.coordinator.select(selection, in: controller)
+        controller.tab(forIdentifier: MainFeature.Tab.notifications.rawValue)?.badgeValue =
+            unreadNotifications > 0 ? unreadNotifications.formatted() : nil
     }
 
     @MainActor
