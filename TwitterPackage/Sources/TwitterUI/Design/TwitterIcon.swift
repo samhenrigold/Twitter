@@ -1,9 +1,12 @@
 import SwiftUI
+import UIKit
 
 /// Twitter's own action glyphs: 24 × 24 template vectors, tinted by the foreground style.
 package enum TwitterIcon: String, Sendable {
     case bookmark
     case bookmarkStroke = "bookmark_stroke"
+    /// New Tweet (`ic_title_compose`).
+    case compose
     case heart
     case heartStroke = "heart_stroke"
     case home
@@ -22,8 +25,17 @@ package enum TwitterIcon: String, Sendable {
     case views = "bar_chart"
 
     package var image: Image {
+        Image(assetName, bundle: .module).renderingMode(.template)
+    }
+
+    /// For UIKit's bars.
+    package var uiImage: UIImage? {
+        UIImage(named: assetName, in: .module, with: nil)?.withRenderingMode(.alwaysTemplate)
+    }
+
+    private var assetName: String {
         // Reposted is the same glyph, tinted.
-        Image(self == .repost ? Self.repostStroke.rawValue : rawValue, bundle: .module).renderingMode(.template)
+        self == .repost ? Self.repostStroke.rawValue : rawValue
     }
 }
 

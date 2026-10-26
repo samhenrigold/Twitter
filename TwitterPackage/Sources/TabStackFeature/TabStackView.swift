@@ -4,107 +4,99 @@ import FeedFeature
 import Models
 import ProfileFeature
 import Routing
+import SafariServices
 import SearchFeature
 import SwiftUI
 import TwitterUI
 import UserListFeature
 import WebFeature
 
-/// A tab's navigation: one `ColumnNavigationController` whose stack is the root and the path. Horizontally regular,
-/// it's Tweetie's stacked columns (each opened thing is a column after the one it came from, the strip slides and
-/// snaps, columns pull down or off to close, a pull on the root throws them away or opens the overview); compact, it's
-/// a plain navigation stack, with web pages in Safari's view instead of a column.
-package struct TabStackView: View {
-    @Bindable var store: StoreOf<TabStack>
+/// A tab's navigation in a window of its own (one opened from "Open in New Window"); see ``TabStackController``.
+package struct TabStackView: UIViewControllerRepresentable {
+    let store: StoreOf<TabStack>
     let title: LocalizedStringKey
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     package init(store: StoreOf<TabStack>, title: LocalizedStringKey) {
         self.store = store
         self.title = title
     }
 
-    package var body: some View {
-        ColumnStack(store: store, title: title, ids: Array(store.path.ids))
-            // Under every bar, iPhone Duo's vertical bar included (which then carries the focused column's buttons):
-            // the navigation controller keeps its columns clear of them itself.
-            .ignoresSafeArea()
-            .onChange(of: horizontalSizeClass == .regular, initial: true) { _, canShowColumns in
-                store.send(.columnAvailabilityChanged(canShowColumns))
-            }
-            .fullScreenCover(item: safari) { page in
-                SafariView(url: page.url)
-                    .ignoresSafeArea()
-            }
+    package func makeCoordinator() -> TabStackController {
+        TabStackController(store: store, title: title)
     }
 
-    private var safari: Binding<TabStack.SafariPage?> {
-        Binding {
-            store.safari
-        } set: { page in
-            if page == nil { store.send(.safariDismissed) }
-        }
+    package func makeUIViewController(context: Context) -> ColumnNavigationController {
+        context.coordinator.navigationController
     }
+
+    package func updateUIViewController(_ controller: ColumnNavigationController, context: Context) {}
 }
 
-/// The column navigation controller, kept in step with the stack's path: opening adds (or replaces) columns, and a
-/// column the controller lets go of (a back swipe, a pull down, a throw away, a flick in the overview) leaves the path.
-private struct ColumnStack: UIViewControllerRepresentable {
-    let store: StoreOf<TabStack>
-    let title: LocalizedStringKey
-    /// Read here so the path changing updates the controller.
-    let ids: [StackElementID]
-
-    func makeCoordinator() -> ColumnStackCoordinator {
-        ColumnStackCoordinator(store: store, title: title)
-    }
-
-    func makeUIViewController(context: Context) -> ColumnNavigationController {
-        let controller = ColumnNavigationController(rootViewController: context.coordinator.root)
-        context.coordinator.sync(controller)
-        return controller
-    }
-
-    func updateUIViewController(_ controller: ColumnNavigationController, context: Context) {
-        context.coordinator.store = store
-        context.coordinator.sync(controller)
-    }
-}
-
+/// A tab's navigation: one `ColumnNavigationController` whose stack is the root and the path, in every size class.
+/// Horizontally regular, it's Tweetie's stacked columns (each opened thing is a column after the one it came from, the
+/// strip slides and snaps, columns pull down or off to close, a pull on the root throws them away or opens the
+/// overview); compact, it's a plain navigation stack, with web pages in Safari's view instead of a column.
+///
+/// The navigation controller is kept in step with the path: opening adds (or replaces) columns, and a column the
+/// controller lets go of (a back swipe, a pull down, a throw away, a flick in the overview) leaves the path.
+///
+/// Columns are hosted straight in UIKit, with no SwiftUI container around the navigation controller: a SwiftUI
+/// `TabView` (or any host managing toolbars) above it stops the columns' toolbars and titles reaching its bar.
 @MainActor
-private final class ColumnStackCoordinator {
+package final class TabStackController: NSObject {
     /// Twitter for iPad's column: two beside the root's peek on iPhone Duo's inner display.
     static let columnWidth: CGFloat = 420
     /// A web page needs more room than a timeline.
     static let webPanelWidth: CGFloat = 600
 
-    var store: StoreOf<TabStack>
-    let root: UIViewController
+    package let navigationController: ColumnNavigationController
+    private let store: StoreOf<TabStack>
     private var columns: [StackElementID: UIViewController] = [:]
     private var isAwaitingTransition = false
+    private var observation: ObserveToken?
 
-    init(store: StoreOf<TabStack>, title: LocalizedStringKey) {
+    package init(store: StoreOf<TabStack>, title: LocalizedStringKey) {
         self.store = store
-        root = ColumnHostingController(stack: store, id: nil, width: Self.columnWidth) {
+        let root = ColumnHostingController(stack: store, id: nil, width: Self.columnWidth) {
             TabRootView(store: store, title: title)
+        }
+        navigationController = ColumnNavigationController(rootViewController: root)
+        super.init()
+        navigationController.registerForTraitChanges([UITraitHorizontalSizeClass.self]) {
+            [weak self] (controller: ColumnNavigationController, _) in
+            self?.columnAvailabilityChanged()
+        }
+        observation = observe { [weak self] in
+            guard let self else { return }
+            _ = store.path.ids
+            sync()
+            presentSafariIfNeeded()
         }
     }
 
+    /// Whether the window is wide enough for columns (otherwise a web page opens in Safari's view).
+    private func columnAvailabilityChanged() {
+        let canShowColumns = navigationController.traitCollection.horizontalSizeClass == .regular
+        if store.canShowColumns != canShowColumns { store.send(.columnAvailabilityChanged(canShowColumns)) }
+    }
+
     /// Makes the controller's stack match the path. Never in the middle of a transition: once it's done.
-    func sync(_ controller: ColumnNavigationController) {
+    private func sync() {
+        let controller = navigationController
         if let transition = controller.transitionCoordinator {
             guard !isAwaitingTransition else { return }
             isAwaitingTransition = true
-            transition.animate(alongsideTransition: nil) { [weak self, weak controller] _ in
+            transition.animate(alongsideTransition: nil) { [weak self] _ in
                 // After UIKit has let go of whatever the transition removed.
                 DispatchQueue.main.async {
-                    guard let self, let controller else { return }
+                    guard let self else { return }
                     self.isAwaitingTransition = false
-                    self.sync(controller)
+                    self.sync()
                 }
             }
             return
         }
+        guard let root = controller.viewControllers.first else { return }
         let stack = [root] + store.path.ids.compactMap(column(for:))
         let current = controller.viewControllers
         guard stack.map(ObjectIdentifier.init) != current.map(ObjectIdentifier.init) else { return }
@@ -142,6 +134,19 @@ private final class ColumnStackCoordinator {
         guard store.path.ids.contains(id) else { return }
         store.send(.path(.popFrom(id: id)))
     }
+
+    private func presentSafariIfNeeded() {
+        guard let page = store.safari, navigationController.presentedViewController == nil else { return }
+        let safari = SFSafariViewController(url: page.url)
+        safari.delegate = self
+        navigationController.present(safari, animated: true)
+    }
+}
+
+extension TabStackController: SFSafariViewControllerDelegate {
+    package nonisolated func safariViewControllerDidFinish(_ controller: SFSafariViewController) {
+        MainActor.assumeIsolated { store.send(.safariDismissed) }
+    }
 }
 
 /// One column's screen. It offers New Tweet to iPhone Duo's vertical bar, which carries the focused column's buttons;
@@ -175,10 +180,11 @@ private final class ColumnHostingController<Content: View>: UIHostingController<
     func makeColumnBarItems() -> [UIBarButtonItem] {
         let compose = UIBarButtonItem(
             title: String(localized: "New Tweet"),
-            image: UIImage(systemName: "square.and.pencil"),
+            image: TwitterIcon.compose.uiImage,
             primaryAction: UIAction { [weak self] _ in self?.performColumnBarAction(Self.composeIdentifier) }
         )
         compose.identifier = Self.composeIdentifier
+        compose.style = .prominent
         return [compose]
     }
 
@@ -200,7 +206,8 @@ private final class ColumnChrome {
     var showsBarItems = true
 }
 
-/// A column: with its own bar as a column, or in the navigation controller's bar on a plain stack.
+/// A column: with its own bar as a column, or in the navigation controller's bar on a plain stack (bridged from the
+/// toolbar).
 private struct ColumnScreen<Content: View>: View {
     let stack: StoreOf<TabStack>
     /// `nil` for the root.
@@ -231,9 +238,16 @@ private struct ColumnScreen<Content: View>: View {
             .toolbar {
                 if id == nil, chrome.showsBarItems {
                     ToolbarItem(placement: .topBarTrailing) {
-                        Button("New Tweet", systemImage: "square.and.pencil") {
+                        Button {
                             stack.send(.composeButtonTapped)
+                        } label: {
+                            Label {
+                                Text("New Tweet")
+                            } icon: {
+                                TwitterIcon.compose.image
+                            }
                         }
+                        .buttonStyle(.glassProminent)
                     }
                 }
             }

@@ -20,66 +20,19 @@ package struct MainView: View {
     }
 
     package var body: some View {
-        TabView(selection: reselectableTab) {
-            Tab(value: .home) {
-                TabStackView(store: tabStack(.home), title: "Home")
-            } label: {
-                TabLabel("Home", icon: .homeStroke, selectedIcon: .home, isSelected: store.selectedTab == .home)
+        MainTabs(store: store, selection: store.selectedTab)
+            // The tab bar controller keeps its tabs clear of the bars itself.
+            .ignoresSafeArea()
+            .sheet(item: $store.scope(state: \.compose, action: \.compose)) { composeStore in
+                ComposeView(store: composeStore)
             }
-
-            Tab(value: .notifications) {
-                TabStackView(store: tabStack(.notifications), title: "Notifications")
-            } label: {
-                TabLabel(
-                    "Notifications", icon: .notificationsStroke, selectedIcon: .notifications,
-                    isSelected: store.selectedTab == .notifications)
+            .onAppear {
+                store.selectedTab = savedTab
+                #if DEBUG
+                    applyLaunchArguments()
+                #endif
             }
-
-            Tab(value: .bookmarks) {
-                TabStackView(store: tabStack(.bookmarks), title: "Bookmarks")
-            } label: {
-                TabLabel(
-                    "Bookmarks", icon: .bookmarkStroke, selectedIcon: .bookmark,
-                    isSelected: store.selectedTab == .bookmarks)
-            }
-
-            Tab(value: .profile) {
-                TabStackView(store: tabStack(.profile), title: "Profile")
-            } label: {
-                TabLabel(
-                    "Profile", icon: .personStroke, selectedIcon: .person, isSelected: store.selectedTab == .profile)
-            }
-
-            Tab(value: .explore) {
-                TabStackView(store: tabStack(.explore), title: "Explore")
-            } label: {
-                TabLabel(
-                    "Explore", icon: .searchStroke, selectedIcon: .search, isSelected: store.selectedTab == .explore)
-            }
-        }
-        .sheet(item: $store.scope(state: \.compose, action: \.compose)) { composeStore in
-            ComposeView(store: composeStore)
-        }
-        .onAppear {
-            store.selectedTab = savedTab
-            #if DEBUG
-                applyLaunchArguments()
-            #endif
-        }
-        .onChange(of: store.selectedTab) { savedTab = store.selectedTab }
-    }
-
-    /// The selected tab; choosing the one already showing takes it back to its root, or its timeline to the top.
-    private var reselectableTab: Binding<MainFeature.Tab> {
-        Binding {
-            store.selectedTab
-        } set: { tab in
-            if tab == store.selectedTab {
-                tabStack(tab).send(.tabReselected)
-            } else {
-                store.selectedTab = tab
-            }
-        }
+            .onChange(of: store.selectedTab) { savedTab = store.selectedTab }
     }
 
     private func tabStack(_ tab: MainFeature.Tab) -> StoreOf<TabStack> {
@@ -93,26 +46,117 @@ package struct MainView: View {
     }
 }
 
-/// A tab in Twitter's own glyphs: outlined, and filled while selected.
-private struct TabLabel: View {
-    let icon: TwitterIcon
-    let isSelected: Bool
-    let selectedIcon: TwitterIcon
-    let title: LocalizedStringKey
+/// The tabs, in UIKit's tab bar controller (iPhone Duo puts its bar in the vertical bar). Each tab is its stack's
+/// column navigation controller with nothing in between: a SwiftUI `TabView` would keep the columns' toolbars out of
+/// the navigation bar.
+private struct MainTabs: UIViewControllerRepresentable {
+    let store: StoreOf<MainFeature>
+    /// Read here so choosing a tab elsewhere (state restoration, launch arguments) updates the controller.
+    let selection: MainFeature.Tab
 
-    init(_ title: LocalizedStringKey, icon: TwitterIcon, selectedIcon: TwitterIcon, isSelected: Bool) {
-        self.icon = icon
-        self.isSelected = isSelected
-        self.selectedIcon = selectedIcon
-        self.title = title
+    func makeCoordinator() -> Coordinator {
+        Coordinator(store: store)
     }
 
-    var body: some View {
-        Label {
-            Text(title)
-        } icon: {
-            (isSelected ? selectedIcon : icon).image
+    func makeUIViewController(context: Context) -> UITabBarController {
+        let controller = UITabBarController()
+        controller.delegate = context.coordinator
+        controller.tabs = MainFeature.Tab.allInOrder.map { tab in
+            UITab(title: tab.title, image: tab.icon(isSelected: false), identifier: tab.rawValue) {
+                [coordinator = context.coordinator] _ in
+                coordinator.stack(for: tab).navigationController
+            }
         }
+        context.coordinator.select(selection, in: controller)
+        return controller
+    }
+
+    func updateUIViewController(_ controller: UITabBarController, context: Context) {
+        context.coordinator.select(selection, in: controller)
+    }
+
+    @MainActor
+    final class Coordinator: NSObject, UITabBarControllerDelegate {
+        private let store: StoreOf<MainFeature>
+        private var stacks: [MainFeature.Tab: TabStackController] = [:]
+
+        init(store: StoreOf<MainFeature>) {
+            self.store = store
+        }
+
+        func stack(for tab: MainFeature.Tab) -> TabStackController {
+            if let stack = stacks[tab] { return stack }
+            let stack = TabStackController(store: tabStack(tab), title: tab.titleKey)
+            stacks[tab] = stack
+            return stack
+        }
+
+        func select(_ selection: MainFeature.Tab, in controller: UITabBarController) {
+            for tab in controller.tabs {
+                guard let value = MainFeature.Tab(rawValue: tab.identifier) else { continue }
+                tab.image = value.icon(isSelected: value == selection)
+            }
+            if controller.selectedTab?.identifier != selection.rawValue,
+                let tab = controller.tab(forIdentifier: selection.rawValue)
+            {
+                controller.selectedTab = tab
+            }
+        }
+
+        /// Choosing the tab already showing takes it back to its root, or its timeline to the top (rather than the
+        /// tab bar controller popping the stack itself).
+        func tabBarController(_ controller: UITabBarController, shouldSelectTab tab: UITab) -> Bool {
+            guard let value = MainFeature.Tab(rawValue: tab.identifier) else { return false }
+            if value == store.selectedTab {
+                tabStack(value).send(.tabReselected)
+                return false
+            }
+            return true
+        }
+
+        func tabBarController(_ controller: UITabBarController, didSelectTab tab: UITab, previousTab: UITab?) {
+            guard let value = MainFeature.Tab(rawValue: tab.identifier), value != store.selectedTab else { return }
+            store.selectedTab = value
+        }
+
+        private func tabStack(_ tab: MainFeature.Tab) -> StoreOf<TabStack> {
+            switch tab {
+            case .bookmarks: store.scope(state: \.bookmarks, action: \.bookmarks)
+            case .explore: store.scope(state: \.explore, action: \.explore)
+            case .home: store.scope(state: \.home, action: \.home)
+            case .notifications: store.scope(state: \.notifications, action: \.notifications)
+            case .profile: store.scope(state: \.profile, action: \.profile)
+            }
+        }
+    }
+}
+
+extension MainFeature.Tab {
+    fileprivate static let allInOrder: [Self] = [.home, .notifications, .bookmarks, .profile, .explore]
+
+    fileprivate var title: String {
+        switch self {
+        case .bookmarks: String(localized: "Bookmarks")
+        case .explore: String(localized: "Explore")
+        case .home: String(localized: "Home")
+        case .notifications: String(localized: "Notifications")
+        case .profile: String(localized: "Profile")
+        }
+    }
+
+    fileprivate var titleKey: LocalizedStringKey { LocalizedStringKey(title) }
+
+    /// Twitter's glyph: outlined, and filled while selected.
+    fileprivate func icon(isSelected: Bool) -> UIImage? {
+        let icon: TwitterIcon =
+            switch self {
+            case .bookmarks: isSelected ? .bookmark : .bookmarkStroke
+            case .explore: isSelected ? .search : .searchStroke
+            case .home: isSelected ? .home : .homeStroke
+            case .notifications: isSelected ? .notifications : .notificationsStroke
+            case .profile: isSelected ? .person : .personStroke
+            }
+        return icon.uiImage
     }
 }
 
