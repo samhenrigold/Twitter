@@ -477,6 +477,11 @@ actor TwitterWebSession {
         return TimelineParser.listPage(from: try await graphQL("CombinedLists", variables: variables))
     }
 
+    /// What's trending, from the web client's Explore page.
+    func trends() async throws -> [Trend] {
+        TimelineParser.trends(from: try await graphQL("ExplorePage", variables: [:]))
+    }
+
     func bookmarks(cursor: String?) async throws -> FeedPage {
         var variables: [String: JSONValue] = ["count": 20, "includePromotedContent": false]
         if let cursor { variables["cursor"] = .string(cursor) }

@@ -1,5 +1,6 @@
 import ComposableArchitecture
 import FeedFeature
+import Models
 import Routing
 import SwiftUI
 import TwitterUI
@@ -16,6 +17,11 @@ package struct SearchView: View {
         Group {
             if let resultsStore = store.scope(state: \.results, action: \.results.presented) {
                 SearchResultsView(store: resultsStore)
+            } else if !store.trends.isEmpty {
+                TrendsList(trends: store.trends) { store.send(.trendTapped($0)) }
+            } else if !store.hasLoadedTrends {
+                ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ContentUnavailableView(
                     "Search Twitter",
@@ -24,6 +30,7 @@ package struct SearchView: View {
                 )
             }
         }
+        .task { store.send(.task) }
         .navigationTitle("Explore")
         .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $store.query, prompt: "Search")
@@ -57,5 +64,48 @@ private struct SearchResultsView: View {
                 .frame(maxWidth: 360)
             }
         }
+    }
+}
+
+/// Explore's trends: each one's context over its name and how much it's being talked about.
+private struct TrendsList: View {
+    let trends: [Trend]
+    let select: (Trend) -> Void
+
+    var body: some View {
+        List {
+            Text("Trends for you")
+                .font(.title3.weight(.heavy))
+                .listRowSeparator(.hidden)
+
+            Section {
+                ForEach(trends) { trend in
+                    Button {
+                        select(trend)
+                    } label: {
+                        VStack(alignment: .leading, spacing: 2) {
+                            if let context = trend.context {
+                                Text(context)
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            Text(trend.name)
+                                .font(.body.weight(.bold))
+
+                            if let volume = trend.volume {
+                                Text(volume)
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(.rect)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+        .listStyle(.plain)
     }
 }

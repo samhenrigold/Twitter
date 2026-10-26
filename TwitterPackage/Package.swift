@@ -134,6 +134,7 @@ let package = Package(
             name: "SearchFeature",
             dependencies: [
                 "FeedFeature",
+                "TwitterClient",
                 "UserListFeature",
                 .product(name: "ComposableArchitecture", package: "swift-composable-architecture")
             ]

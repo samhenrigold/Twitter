@@ -48,6 +48,31 @@ struct SearchFeatureTests {
     }
 
     @Test
+    func exploreLoadsTrendsAndATrendSearchesItsQuery() async {
+        let trend = Trend(name: "#WWDC", context: "Trending in Technology")
+        let store = TestStore(initialState: SearchFeature.State()) {
+            SearchFeature()
+        } withDependencies: {
+            $0[TwitterClient.self].trends = { [trend] }
+        }
+
+        await store.send(.task)
+        await store.receive(\.trendsResponse) {
+            $0.hasLoadedTrends = true
+            $0.trends = [trend]
+        }
+        await store.send(.trendTapped(trend)) {
+            $0.query = "#WWDC"
+        }
+        await store.receive(\.searchSubmitted) {
+            $0.submittedQuery = "#WWDC"
+        }
+        await store.receive(\.resultsCleared) {
+            $0.results = SearchResults.State(query: "#WWDC")
+        }
+    }
+
+    @Test
     func resubmittingSameQueryKeepsResults() async {
         let store = TestStore(initialState: SearchFeature.State(submitting: "swift")) {
             SearchFeature()

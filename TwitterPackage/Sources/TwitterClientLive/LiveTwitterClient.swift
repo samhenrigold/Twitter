@@ -32,6 +32,7 @@ extension TwitterClient: DependencyKey {
             setReposted: { try await store.session().setReposted($0, tweetID: $1) },
             signIn: { try await store.signIn(cookies: $0) },
             signOut: { await store.signOut() },
+            trends: { try await store.session().trends() },
             user: { try await store.session().user(screenName: $0) },
             users: { source, cursor in try await store.session().users(source, cursor: cursor) }
         )

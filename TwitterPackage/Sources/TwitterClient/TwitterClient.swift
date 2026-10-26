@@ -32,6 +32,7 @@ package struct TwitterClient: Sendable {
     package var setReposted: @Sendable (_ isReposted: Bool, _ tweetID: String) async throws -> Void
     package var signIn: @Sendable (_ cookies: [String: String]) async throws -> User
     package var signOut: @Sendable () async -> Void
+    package var trends: @Sendable () async throws -> [Trend]
     package var user: @Sendable (_ screenName: String) async throws -> User
     package var users: @Sendable (_ source: UserListSource, _ cursor: String?) async throws -> UserPage
 }
@@ -54,6 +55,7 @@ extension TwitterClient: TestDependencyKey {
             setReposted: { _, _ in },
             signIn: { _ in .mock },
             signOut: {},
+            trends: { Trend.mocks },
             user: { screenName in
                 User.mocks.first { $0.screenName.lowercased() == screenName.lowercased() } ?? .mock
             },

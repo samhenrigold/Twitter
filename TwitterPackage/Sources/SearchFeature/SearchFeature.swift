@@ -2,6 +2,7 @@ import ComposableArchitecture
 import FeedFeature
 import Models
 import Routing
+import TwitterClient
 import UserListFeature
 
 @Reducer
@@ -11,6 +12,10 @@ package struct SearchFeature {
         var query = ""
         @Presents var results: SearchResults.State?
         var submittedQuery: String?
+        /// What's trending, shown before anything's searched.
+        var trends: [Trend] = []
+        var trendsError: String?
+        var hasLoadedTrends = false
 
         package init() {}
 
@@ -27,7 +32,12 @@ package struct SearchFeature {
         case results(PresentationAction<SearchResults.Action>)
         case resultsCleared(query: String)
         case searchSubmitted
+        case task
+        case trendTapped(Trend)
+        case trendsResponse(Result<[Trend], any Error>)
     }
+
+    @Dependency(TwitterClient.self) var client
 
     package init() {}
 
@@ -62,6 +72,28 @@ package struct SearchFeature {
                 // Gone first, so the old results' effects are cancelled before the new ones start.
                 state.results = nil
                 return .send(.resultsCleared(query: query))
+
+            case .task:
+                // Only Explore shows them; a search opened from elsewhere starts with its results.
+                guard !state.hasLoadedTrends, state.results == nil else { return .none }
+                return .run { send in
+                    await send(.trendsResponse(Result { try await client.trends() }))
+                }
+
+            case .trendTapped(let trend):
+                state.query = trend.query
+                return .send(.searchSubmitted)
+
+            case .trendsResponse(.success(let trends)):
+                state.hasLoadedTrends = true
+                state.trends = trends
+                state.trendsError = nil
+                return .none
+
+            case .trendsResponse(.failure(let error)):
+                state.hasLoadedTrends = true
+                state.trendsError = error.localizedDescription
+                return .none
             }
         }
         .ifLet(\.$results, action: \.results) {
