@@ -110,37 +110,71 @@ private struct NotificationIcon: View {
 
     var body: some View {
         let style = NotificationIconStyle(icon: icon)
-        Glyph(style.symbol, size: 26)
-            .font(.title2)
+        TwitterIconView(style.icon, size: 26)
             .foregroundStyle(style.color)
-            .accessibilityHidden(true)
     }
 }
 
+/// The glyph and color for a notification's `xxx_icon`, as Twitter's own table pairs them.
 private struct NotificationIconStyle {
+    let icon: TwitterIcon
     let color: Color
-    let symbol: String
 
     init(icon: String) {
-        switch icon {
-        case let icon where icon.contains("heart"):
-            (symbol, color) = (TwitterIcon.heart.rawValue, .twitterLike)
-        case let icon where icon.contains("retweet"):
-            (symbol, color) = (TwitterIcon.repostStroke.rawValue, .twitterRepost)
-        case let icon where icon.contains("person") || icon.contains("follow"):
-            (symbol, color) = (TwitterIcon.person.rawValue, .accentColor)
-        case let icon where icon.contains("bell"):
-            (symbol, color) = (TwitterIcon.notifications.rawValue, .accentColor)
-        case let icon where icon.contains("star") || icon.contains("bird"):
-            (symbol, color) = ("star.fill", .twitterPurple)
-        case let icon where icon.contains("security") || icon.contains("safety"):
-            (symbol, color) = (TwitterIcon.lock.rawValue, .twitterOrange)
-        case let icon where icon.contains("live") || icon.contains("space"):
-            (symbol, color) = ("waveform", .twitterPurple)
-        case let icon where icon.contains("milestone") || icon.contains("trending"):
-            (symbol, color) = ("chart.line.uptrend.xyaxis", .accentColor)
-        default:
-            (symbol, color) = ("sparkles", .accentColor)
+        let charm = icon.hasSuffix("_icon") ? String(icon.dropLast("_icon".count)) : icon
+        (self.icon, color) = Self.style(charm: charm) ?? Self.fallbackStyle(charm: charm)
+    }
+
+    private static func style(charm: String) -> (TwitterIcon, Color)? {
+        switch charm {
+        case "heart": (.heart, .twitterLike)
+        case "heart_plus": (.heartPlus, .twitterLike)
+        case "person": (.person, .twitterBlue)
+        case "list": (.lists, .twitterSecondary)
+        case "retweet": (.repost, .twitterRepost)
+        case "bird": (.twitter, .twitterBlue)
+        case "lightning_bolt": (.lightning, .twitterBlue)
+        case "histogram": (.barChartHorizontal, .twitterBlue)
+        case "bell": (.notifications, .twitterBlue)
+        case "alert_bell": (.alerts, .twitterError)
+        case "reply", "conversation_bubble": (.reply, .twitterBlue)
+        case "location_pin": (.location, .twitterBlue)
+        case "stacked_cards": (.highlights, .twitterBlue)
+        case "trending": (.fire, .twitterOrange)
+        case "lock": (.lock, .twitterBlue)
+        case "news": (.news, .twitterBlue)
+        case "play": (.play, .twitterBlue)
+        case "highlights": (.notificationsHighlight, .twitterBlue)
+        case "milestone": (.notificationsMilestone, .twitterBlue)
+        case "recommendation": (.notificationsRecommendation, .twitterBlue)
+        case "safety": (.notificationsSafety, .twitterBlue)
+        case "security_alert": (.notificationsSecurityAlert, .twitterBlue)
+        case "security_unknown": (.notificationsSecurityUnknown, .twitterBlue)
+        case "topic": (.topics, .twitterBlue)
+        case "verified_general": (.verifiedStroke, .twitterBlue)
+        case "verified_notable": (.verified, .twitterBlue)
+        case "super_follow": (.superFollow, .twitterBlue)
+        case "birdwatch": (.peopleCrowd, .twitterBlue)
+        case "spaces": (.notificationsSpaces, .twitterPurple)
+        case "safety_mode": (.safetyMode, .twitterOrange)
+        case "communities": (.communities, .twitterBlue)
+        default: nil
+        }
+    }
+
+    /// For names Twitter adds later: the nearest family, else the bird.
+    private static func fallbackStyle(charm: String) -> (TwitterIcon, Color) {
+        switch charm {
+        case let charm where charm.contains("heart"): (.heart, .twitterLike)
+        case let charm where charm.contains("retweet"): (.repost, .twitterRepost)
+        case let charm where charm.contains("person") || charm.contains("follow"): (.person, .twitterBlue)
+        case let charm where charm.contains("bell"): (.notifications, .twitterBlue)
+        case let charm where charm.contains("security"): (.notificationsSecurityAlert, .twitterBlue)
+        case let charm where charm.contains("safety"): (.notificationsSafety, .twitterBlue)
+        case let charm where charm.contains("space") || charm.contains("live"): (.notificationsSpaces, .twitterPurple)
+        case let charm where charm.contains("milestone"): (.notificationsMilestone, .twitterBlue)
+        case let charm where charm.contains("trending"): (.fire, .twitterOrange)
+        default: (.twitter, .twitterBlue)
         }
     }
 }

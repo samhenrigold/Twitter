@@ -132,13 +132,13 @@ package enum TimelineParser {
                     case "pin": "pin"
                     case "like": "heart"
                     case "follow", "following": "person"
-                    case "conversation", "reply": "reply_stroke"
+                    case "conversation", "reply": "reply"
                     case "community": "communities"
                     case "list": "lists"
-                    case "topic": "number"
+                    case "topic": "topics"
                     case "location": "location"
-                    case "megaphone", "spaces": "megaphone.fill"
-                    default: social.lowercased().contains("pinned") ? "pin" : "sparkles"
+                    case "megaphone", "spaces": "spaces"
+                    default: social.lowercased().contains("pinned") ? "pin" : "sparkle"
                     }
             }
             return .tweet(item)

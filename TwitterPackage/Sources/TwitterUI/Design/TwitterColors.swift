@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// Twitter's timeline palette (light, and the "lights out" dark theme), from the asset catalog.
 extension Color {
@@ -62,6 +63,12 @@ extension ShapeStyle where Self == Color {
     package static var twitterGroove: Color { Color.twitterGroove }
     package static var twitterBackground: Color { Color.twitterBackground }
     package static var followsYouBadge: Color { Color.followsYouBadge }
+}
+
+/// The palette, for UIKit's bars.
+extension UIColor {
+    /// Twitter's tab items: the text color whether or not they're selected, which shows only in the filled glyph.
+    package static let twitterPrimary = UIColor(resource: .twitterPrimary)
 }
 
 /// A full-bleed hairline in the divider colour, in place of the system `Divider`.

@@ -134,7 +134,7 @@ private struct RepostMenu: View {
             Button {
                 store.send(.quoteButtonTapped(tweet))
             } label: {
-                Label("Quote Tweet", twitterIcon: .quote)
+                Label("Quote Tweet", twitterIcon: .quoteTweet)
             }
         } label: {
             EngagementLabel(icon: engagement.repost.isOn ? .repost : .repostStroke, count: engagement.repost.count)
@@ -152,7 +152,7 @@ private struct ShareButton: View {
 
     var body: some View {
         ShareLink(item: tweet.url) {
-            EngagementLabel(icon: .shareStroke, count: nil, minWidth: EngagementLabel.iconOnlyWidth)
+            EngagementLabel(icon: .share, count: nil, minWidth: EngagementLabel.iconOnlyWidth)
                 .foregroundStyle(.twitterSecondary)
         }
         .buttonStyle(.plain)

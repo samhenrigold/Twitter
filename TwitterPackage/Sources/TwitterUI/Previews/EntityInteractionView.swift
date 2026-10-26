@@ -115,7 +115,7 @@ final class EntityInteractionView: UIView, UIContextMenuInteractionDelegate {
                     String(localized: "Copy Username"), image: TwitterIcon.at.uiImage, string: "@\(screenName)"))
         case .hashtag(let tag):
             secondary.append(
-                copyAction(String(localized: "Copy Hashtag"), image: UIImage(systemName: "number"), string: tag))
+                copyAction(String(localized: "Copy Hashtag"), image: TwitterIcon.hashStroke.uiImage, string: tag))
         case .cashtag(let tag):
             secondary.append(
                 copyAction(String(localized: "Copy Cashtag"), image: UIImage(systemName: "dollarsign"), string: tag))
@@ -133,7 +133,7 @@ final class EntityInteractionView: UIView, UIContextMenuInteractionDelegate {
                     UIPasteboard.general.url = webURL
                 })
             secondary.append(
-                UIAction(title: String(localized: "Share…"), image: TwitterIcon.shareStroke.uiImage) {
+                UIAction(title: String(localized: "Share…"), image: TwitterIcon.share.uiImage) {
                     [weak self] _ in self?.share(webURL, from: target)
                 })
         }

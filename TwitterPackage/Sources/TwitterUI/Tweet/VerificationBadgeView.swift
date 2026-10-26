@@ -10,8 +10,8 @@ package struct VerificationBadgeView: View {
     }
 
     package var body: some View {
-        // Twitter's badge, in the account's color, sized to the name it follows.
-        TwitterIcon.verified.image
+        // Twitter's badge, in the account's color, sized to the name it follows; a business's is its own gold.
+        icon.image
             .resizable()
             .scaledToFit()
             .frame(width: 16, height: 16)
@@ -19,12 +19,12 @@ package struct VerificationBadgeView: View {
             .accessibilityLabel(label)
     }
 
-    private var color: AnyShapeStyle {
-        switch badge {
-        case .blue: AnyShapeStyle(Color.twitterBlue)
-        case .business: AnyShapeStyle(Color(.badgeBusiness))
-        case .government: AnyShapeStyle(Color(.badgeGovernment))
-        }
+    private var icon: TwitterIcon {
+        badge == .business ? .verifiedGold : .verified
+    }
+
+    private var color: Color {
+        badge == .government ? Color(.badgeGovernment) : .twitterBlue
     }
 
     private var label: Text {

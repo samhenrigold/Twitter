@@ -87,7 +87,7 @@ struct ProfileHeader: View {
 
             if !user.bio.isEmpty {
                 // Links, mentions and hashtags, as in a post; any Markdown punctuation stays as typed.
-                TweetText(links: [:], text: user.bio, font: metrics.font(.body))
+                TweetText(text: user.bio, font: metrics.font(.body))
                     .lineSpacing(metrics.lineSpacing(for: .body))
                     .foregroundStyle(.twitterPrimary)
                     .padding(.horizontal, 16)
@@ -176,17 +176,33 @@ private struct ProfileDetailItems: View {
 
     var body: some View {
         if !user.location.isEmpty {
-            Label(user.location, twitterIcon: .locationStroke)
+            ProfileDetailLabel(text: Text(verbatim: user.location), icon: .locationStroke)
         }
 
         if let website = user.website, let url = user.websiteURL {
             Link(destination: url) {
-                Label(website, twitterIcon: .link)
+                ProfileDetailLabel(text: Text(verbatim: website), icon: .link)
             }
         }
 
         if let joined = user.joined {
-            Label("Joined \(joined.formatted(.dateTime.month(.wide).year()))", twitterIcon: .calendar)
+            ProfileDetailLabel(
+                text: Text("Joined \(joined.formatted(.dateTime.month(.wide).year()))"), icon: .calendar)
+        }
+    }
+}
+
+/// A detail under the bio, its glyph as tall as a line of the text beside it.
+private struct ProfileDetailLabel: View {
+    let text: Text
+    let icon: TwitterIcon
+    @Environment(\.tweetMetrics) private var metrics
+
+    var body: some View {
+        Label {
+            text
+        } icon: {
+            TwitterIconView(icon, size: metrics.glyphSize(for: .subtext1))
         }
     }
 }

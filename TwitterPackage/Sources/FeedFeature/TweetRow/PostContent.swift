@@ -122,7 +122,7 @@ private struct ReplyRestrictionBanner: View {
                 }
             }
         } icon: {
-            Glyph((restriction.policy == .mentioned ? TwitterIcon.at : .followingStroke).rawValue, size: 16)
+            TwitterIconView(icon, size: 16)
                 .foregroundStyle(.tint)
         }
         .font(.footnote)
@@ -130,5 +130,15 @@ private struct ReplyRestrictionBanner: View {
         .padding(10)
         .background(.fill.quaternary, in: .rect(cornerRadius: 12))
         .accessibilityElement(children: .combine)
+    }
+
+    /// Twitter's conversation-control glyph for who may reply.
+    private var icon: TwitterIcon {
+        switch restriction.policy {
+        case .mentioned: .at
+        case .verified: .verifiedStroke
+        case .subscribers: .superFollow
+        case .following, .other: .personCheckmarkStroke
+        }
     }
 }

@@ -32,7 +32,7 @@ package struct WebPanelView: View {
                     pageControls(page)
                 }
 
-                ColumnMenuToolbarItem("Share", twitterIcon: .shareStroke, placement: columnBarPlacement) {
+                ColumnMenuToolbarItem("Share", twitterIcon: .share, placement: columnBarPlacement) {
                     WebPanelMenuItems(store: store)
                 }
             }

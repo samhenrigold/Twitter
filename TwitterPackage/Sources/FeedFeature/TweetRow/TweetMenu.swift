@@ -31,7 +31,7 @@ package struct TweetMenu: View {
         Button {
             store.send(.quoteButtonTapped(tweet))
         } label: {
-            Label("Quote Tweet", twitterIcon: .quote)
+            Label("Quote Tweet", twitterIcon: .quoteTweet)
         }
 
         PostActivityMenu(tweet: tweet, isOwnPost: tweet.author.id == viewer?.id, store: store)
@@ -58,13 +58,13 @@ package struct TweetMenu: View {
                     twitterIcon: tweet.author.isMuting ? .unmute : .mute)
             }
 
-            Button(role: tweet.author.isBlocking ? nil : .destructive) {
+            Button {
                 store.send(.blockButtonTapped(tweet.author))
             } label: {
                 Label(
                     tweet.author.isBlocking
                         ? "Unblock @\(tweet.author.screenName)" : "Block @\(tweet.author.screenName)",
-                    twitterIcon: .block)
+                    twitterIcon: tweet.author.isBlocking ? .unblock : .block)
             }
         }
 

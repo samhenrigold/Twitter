@@ -58,6 +58,9 @@ private struct MainTabs: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> UITabBarController {
         let controller = MainTabBarController()
         controller.delegate = context.coordinator
+        // As Twitter's: selected and not, the items are the text color; only the glyph's fill tells them apart.
+        controller.tabBar.tintColor = .twitterPrimary
+        controller.tabBar.unselectedItemTintColor = .twitterPrimary
         controller.compose = { [coordinator = context.coordinator] in coordinator.compose() }
         controller.selectTab = { [coordinator = context.coordinator] in coordinator.choose($0) }
         controller.tabs = MainFeature.Tab.allInOrder.map { tab in

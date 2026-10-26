@@ -64,13 +64,13 @@ package struct ProfileMenuItems: View {
     }
 
     package var body: some View {
-        Button("Lists", twitterIcon: .lists) {
+        Button("Lists", twitterIcon: .listsStroke) {
             store.send(.listsButtonTapped)
         }
 
         if let url = store.user?.profileURL {
             ShareLink(item: url) {
-                Label("Share Profile", twitterIcon: .shareStroke)
+                Label("Share Profile", twitterIcon: .share)
             }
 
             Button("Copy Link to Profile", twitterIcon: .link) {
@@ -102,8 +102,7 @@ package struct ProfileMenuItems: View {
 
             Button(
                 user.isBlocking ? "Unblock @\(user.screenName)" : "Block @\(user.screenName)",
-                twitterIcon: .block,
-                role: user.isBlocking ? nil : .destructive
+                twitterIcon: user.isBlocking ? .unblock : .block
             ) {
                 store.send(.blockButtonTapped)
             }

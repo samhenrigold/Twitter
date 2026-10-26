@@ -81,6 +81,11 @@ package struct TweetMetrics: Equatable, Sendable {
         return max(size * 18 / 14 - TwitterFont.lineHeight(size: size), 0)
     }
 
+    /// One line of Chirp at `style`'s size, without the 18/14 leading: the height of a glyph set in a line of it.
+    package func glyphSize(for style: TwitterTextStyle) -> CGFloat {
+        TwitterFont.lineHeight(size: size(style))
+    }
+
     package func size(_ style: TwitterTextStyle) -> CGFloat {
         bodySize + style.offset
     }

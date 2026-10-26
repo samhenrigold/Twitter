@@ -28,9 +28,9 @@ package struct TweetRow: View {
     package var body: some View {
         VStack(alignment: .leading, spacing: 4 * metrics.unit) {
             if let reposter = item.repostedBy {
-                ContextLabel(symbol: TwitterIcon.repostStroke.rawValue, text: Text("\(reposter.name) retweeted"))
+                ContextLabel(symbol: TwitterIcon.repost.rawValue, text: Text("\(reposter.name) retweeted"))
             } else if let context = item.socialContext {
-                ContextLabel(symbol: item.socialSymbol ?? "sparkles", text: Text(verbatim: context))
+                ContextLabel(symbol: item.socialSymbol ?? TwitterIcon.sparkle.rawValue, text: Text(verbatim: context))
             }
 
             if layout == .stacked {
