@@ -1,5 +1,6 @@
 import ComposableArchitecture
 import Models
+import PhotosUI
 import Routing
 import SwiftUI
 import TwitterClient
@@ -12,6 +13,7 @@ package struct ComposeView: View {
         self.store = store
     }
     @FocusState private var isEditorFocused: Bool
+    @State private var pickedItems: [PhotosPickerItem] = []
 
     package var body: some View {
         NavigationStack {
@@ -31,6 +33,12 @@ package struct ComposeView: View {
                     .font(.title3)
                     .lineLimit(4...)
                     .focused($isEditorFocused)
+
+                    if !store.attachments.isEmpty {
+                        AttachmentStrip(attachments: store.attachments) { id in
+                            store.send(.removeAttachmentButtonTapped(id), animation: .snappy)
+                        }
+                    }
 
                     if let quoting = store.draft.quoting {
                         QuoteCard(tweet: quoting) {}
@@ -64,12 +72,27 @@ package struct ComposeView: View {
                     .disabled(!store.canPost)
                 }
 
-                ToolbarItem(placement: .bottomBar) {
+            }
+            // Above the keyboard, as Twitter's composer keeps them.
+            .safeAreaBar(edge: .bottom) {
+                HStack {
+                    PhotosPicker(
+                        selection: $pickedItems,
+                        maxSelectionCount: max(store.remainingPhotos, 1),
+                        matching: .any(of: [.images, .videos])
+                    ) {
+                        Label("Add Media", twitterIcon: .mediaStroke)
+                            .labelStyle(.iconOnly)
+                            .frame(width: 32, height: 32)
+                    }
+                    .disabled(store.remainingPhotos == 0 || store.isPosting)
+
+                    Spacer()
+
                     CharacterCountGauge(remaining: store.remainingCharacters)
                 }
-                // A custom view stays horizontal by default and would vanish on the folded display's vertical bar;
-                // the circular gauge fits that bar as is.
-                .axisBehavior(.verticalPreferred)
+                .padding(.horizontal)
+                .padding(.vertical, 8)
             }
             .overlay {
                 if store.isPosting {
@@ -80,7 +103,13 @@ package struct ComposeView: View {
                 }
             }
         }
-        .interactiveDismissDisabled(!store.text.isEmpty || store.isPosting)
+        .interactiveDismissDisabled(!store.text.isEmpty || !store.attachments.isEmpty || store.isPosting)
+        .task(id: pickedItems) {
+            guard !pickedItems.isEmpty else { return }
+            let uploads = await MediaUpload.load(pickedItems)
+            pickedItems = []
+            store.send(.mediaPicked(uploads), animation: .snappy)
+        }
         .onAppear { isEditorFocused = true }
     }
 }
@@ -103,5 +132,77 @@ private struct CharacterCountGauge: View {
         // A scale effect doesn't shrink layout; size the slot the toolbar reserves to what's drawn.
         .frame(width: 32, height: 32)
         .accessibilityLabel("\(remaining) characters remaining")
+    }
+}
+
+/// What's attached, as thumbnails to remove before posting.
+private struct AttachmentStrip: View {
+    let attachments: IdentifiedArrayOf<ComposeFeature.Attachment>
+    let remove: (ComposeFeature.Attachment.ID) -> Void
+
+    var body: some View {
+        ScrollView(.horizontal) {
+            HStack(spacing: 8) {
+                ForEach(attachments) { attachment in
+                    AttachmentThumbnail(attachment: attachment)
+                        .overlay(alignment: .topTrailing) {
+                            Button("Remove", twitterIcon: .close) { remove(attachment.id) }
+                                .labelStyle(.iconOnly)
+                                .buttonStyle(.glass)
+                                .buttonBorderShape(.circle)
+                                .controlSize(.small)
+                                .padding(6)
+                        }
+                }
+            }
+        }
+        .scrollIndicators(.hidden)
+    }
+}
+
+private struct AttachmentThumbnail: View {
+    let attachment: ComposeFeature.Attachment
+
+    var body: some View {
+        Group {
+            if attachment.isVideo {
+                Rectangle()
+                    .fill(.fill.secondary)
+                    .overlay {
+                        TwitterIcon.play.image
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 28, height: 28)
+                            .foregroundStyle(.secondary)
+                    }
+            } else if let image = UIImage(data: attachment.upload.data) {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+            }
+        }
+        .frame(width: attachment.isVideo ? 160 : 120, height: 120)
+        .clipShape(.rect(cornerRadius: 12))
+        .accessibilityLabel(attachment.isVideo ? "Video" : "Photo")
+    }
+}
+
+extension MediaUpload {
+    /// Loads picked library items for upload: photos as JPEG, GIFs and videos as they are. Items that fail to load are
+    /// left out.
+    static func load(_ items: [PhotosPickerItem]) async -> [MediaUpload] {
+        var uploads: [MediaUpload] = []
+        for item in items {
+            guard let data = try? await item.loadTransferable(type: Data.self) else { continue }
+            let types = item.supportedContentTypes
+            if types.contains(where: { $0.conforms(to: .movie) }) {
+                uploads.append(MediaUpload(data: data, mimeType: "video/mp4"))
+            } else if types.contains(where: { $0.conforms(to: .gif) }) {
+                uploads.append(MediaUpload(data: data, mimeType: "image/gif"))
+            } else if let jpeg = UIImage(data: data)?.jpegData(compressionQuality: 0.9) {
+                uploads.append(MediaUpload(data: jpeg, mimeType: "image/jpeg"))
+            }
+        }
+        return uploads
     }
 }

@@ -174,6 +174,10 @@ extension MainFeature.Tab {
             if arguments.contains("--open-thread"), let tweet = Tweet.mocks.first {
                 store.send(.home(.root(.feeds(.delegate(.open(.thread(tweet)))))))
             }
+            // `--compose`: the New Tweet sheet.
+            if arguments.contains("--compose") {
+                store.send(.home(.composeButtonTapped))
+            }
             // `--open-reply`: a reply's thread, with the conversation it replies to above it.
             if arguments.contains("--open-reply") {
                 store.send(.home(.root(.feeds(.delegate(.open(.thread(.mockReply)))))))

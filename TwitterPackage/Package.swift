@@ -238,6 +238,13 @@ let package = Package(
             ]
         ),
         .testTarget(
+            name: "ComposeFeatureTests",
+            dependencies: [
+                "ComposeFeature",
+                .product(name: "DependenciesTestSupport", package: "swift-dependencies")
+            ]
+        ),
+        .testTarget(
             name: "FeedFeatureTests",
             dependencies: [
                 "FeedFeature",
