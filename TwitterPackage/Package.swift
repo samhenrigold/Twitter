@@ -9,6 +9,7 @@ let package = Package(
     ],
     products: [
         .library(name: "AppFeature", targets: ["AppFeature"]),
+        .library(name: "ColumnNavigation", targets: ["ColumnNavigation"]),
         .library(name: "ComposeFeature", targets: ["ComposeFeature"]),
         .library(name: "FeedFeature", targets: ["FeedFeature"]),
         .library(name: "ImagePipeline", targets: ["ImagePipeline"]),
@@ -48,6 +49,17 @@ let package = Package(
                 "TwitterDatabase",
                 "TwitterUI",
                 .product(name: "ComposableArchitecture", package: "swift-composable-architecture")
+            ]
+        ),
+        .target(
+            name: "ColumnNavigation",
+            resources: [
+                .process("Resources")
+            ],
+            swiftSettings: [
+                .defaultIsolation(MainActor.self),
+                .enableUpcomingFeature("NonisolatedNonsendingByDefault"),
+                .enableUpcomingFeature("InferIsolatedConformances")
             ]
         ),
         .target(
@@ -126,6 +138,7 @@ let package = Package(
         .target(
             name: "TabStackFeature",
             dependencies: [
+                "ColumnNavigation",
                 "FeedFeature",
                 "ProfileFeature",
                 "SearchFeature",

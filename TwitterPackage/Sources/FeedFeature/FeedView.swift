@@ -80,7 +80,7 @@ private struct NewPostsButton: View {
                 .font(.subheadline.weight(.semibold))
                 .padding(.horizontal, 6)
         }
-        .buttonStyle(.classicProminent)
+        .buttonStyle(.borderedProminent)
         .sensoryFeedback(.increase, trigger: count)
     }
 }
@@ -179,7 +179,6 @@ private struct ShowMoreRow: View {
                 }
 
                 Text(cursor.label)
-                    .letterpress()
             }
             .font(.subheadline.weight(.semibold))
             .foregroundStyle(.secondary)
@@ -249,7 +248,7 @@ struct FeedFooter: View {
                     Text(errorMessage)
                 } actions: {
                     Button("Try Again") { store.send(.retryButtonTapped) }
-                        .buttonStyle(.classic)
+                        .buttonStyle(.bordered)
                 }
             } else if store.isLoading {
                 ProgressView()
@@ -279,9 +278,9 @@ package struct FeedsView<Header: View>: View {
                 header
             }
             .id(store.selection)
-            // Under a header (a profile's), on the column bar beneath the title; at the top of a tab, in the
-            // navigation bar in place of the title, as Twitter for iPad's column filters were.
-            .classicTitleBar {
+            // Under a header (a profile's), in a bar beneath the title; at the top of a tab, in the navigation bar in
+            // place of the title.
+            .safeAreaBar(edge: .top) {
                 if showsSwitcher, !isTopLevel {
                     FeedSwitcher(feeds: store.feeds.map(\.source), selection: $store.selection)
                         .padding(.horizontal, 16)
@@ -311,9 +310,14 @@ private struct FeedSwitcher: View {
     @Binding var selection: FeedSource
 
     var body: some View {
-        ClassicSegmentedControl(feeds, selection: $selection.animation(.snappy)) { Text($0.title) }
-            // Over the readable column on a wide display instead of stretching across it.
-            .frame(maxWidth: 680)
+        Picker("Feed", selection: $selection.animation(.snappy)) {
+            ForEach(feeds, id: \.self) { feed in
+                Text(feed.title)
+            }
+        }
+        .pickerStyle(.segmented)
+        // Over the readable column on a wide display instead of stretching across it.
+        .frame(maxWidth: 680)
     }
 }
 

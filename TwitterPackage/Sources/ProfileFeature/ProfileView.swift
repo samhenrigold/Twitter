@@ -8,9 +8,6 @@ import TwitterUI
 
 package struct ProfileView: View {
     let store: StoreOf<ProfileFeature>
-    @Environment(\.hasClassicSidebar) private var hasClassicSidebar
-    @Environment(\.sidebarCarriesColumnMenu) private var sidebarCarriesColumnMenu
-    @Environment(\.isFrontmostColumn) private var isFrontmostColumn
 
     package init(store: StoreOf<ProfileFeature>) {
         self.store = store
@@ -20,7 +17,6 @@ package struct ProfileView: View {
         Group {
             if let user = store.user, user.blocksViewer || (user.isBlocking && !store.isShowingBlockedPosts) {
                 BlockedProfile(user: user, store: store)
-                    .classicTitleBar()
             } else if let feedsStore = store.scope(state: \.feeds, action: \.feeds), let user = store.user {
                 FeedsView(store: feedsStore) {
                     ProfileHeader(user: user, isViewer: store.isViewer, store: store)
@@ -32,27 +28,19 @@ package struct ProfileView: View {
                     Text(errorMessage)
                 } actions: {
                     Button("Try Again") { store.send(.task) }
-                        .buttonStyle(.classic)
+                        .buttonStyle(.bordered)
                 }
-                .classicTitleBar()
             } else {
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .classicTitleBar()
             }
         }
         .navigationTitle(store.user?.name ?? "@\(store.screenName)")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if store.hasMenu {
-                if !sidebarCarriesColumnMenu {
-                    ClassicColumnMenuToolbarItem(
-                        "Account",
-                        isFrontmostColumn: isFrontmostColumn,
-                        hasClassicSidebar: hasClassicSidebar
-                    ) {
-                        ProfileMenuItems(store: store)
-                    }
+                ColumnMenuToolbarItem("Account") {
+                    ProfileMenuItems(store: store)
                 }
             }
         }
@@ -121,7 +109,7 @@ private struct BlockedProfile: View {
                         )
                     } actions: {
                         Button("View Tweets") { store.send(.viewPostsButtonTapped) }
-                            .buttonStyle(.classic)
+                            .buttonStyle(.bordered)
                     }
                 }
             }
@@ -207,9 +195,9 @@ private struct ProfileHeader: View {
                 if !isViewer {
                     if user.isBlocking {
                         Button("Unblock") { store.send(.blockButtonTapped) }
-                            .buttonStyle(.classic)
+                            .buttonStyle(.bordered)
                     } else if !user.blocksViewer {
-                        ClassicFollowButton(isFollowing: user.isFollowing) { store.send(.followButtonTapped) }
+                        FollowButton(isFollowing: user.isFollowing) { store.send(.followButtonTapped) }
                     }
                 }
             }

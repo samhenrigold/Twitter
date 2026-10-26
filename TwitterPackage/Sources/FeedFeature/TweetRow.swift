@@ -294,7 +294,8 @@ private struct FocusedStatsLine: View {
                 }
 
                 if tweet.quoteCount > 0 {
-                    FocusedStat(count: tweet.quoteCount, label: tweet.quoteCount == 1 ? "Quote Tweet" : "Quote Tweets") {
+                    FocusedStat(count: tweet.quoteCount, label: tweet.quoteCount == 1 ? "Quote Tweet" : "Quote Tweets")
+                    {
                         store.send(.quotesButtonTapped(tweet))
                     }
                 }
@@ -479,7 +480,7 @@ private struct DetailEngagementBar: View {
     let store: StoreOf<FeedFeature>
 
     var body: some View {
-        ClassicDetailActionBar {
+        DetailActionBar {
             EngagementButton(
                 action: { store.send(.replyButtonTapped(tweet)) },
                 count: tweet.replyCount,

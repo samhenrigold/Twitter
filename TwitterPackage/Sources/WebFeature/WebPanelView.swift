@@ -4,14 +4,11 @@ import SwiftUI
 import TwitterUI
 import WebKit
 
-/// Twitter for iPad's web panel: the page in a column of its own, with Twitter for iPad's web bar (title, back and
-/// forward, reload) in its column bar, and sharing beside it. Links to posts and profiles open as columns after it instead of loading x.com.
+/// Twitter for iPad's web panel: the page in a column of its own, with back, forward and reload in its bar, and sharing
+/// beside them. Links to posts and profiles open as columns after it instead of loading x.com.
 package struct WebPanelView: View {
     let store: StoreOf<WebFeature>
     @State private var holder = WebPageHolder()
-    @Environment(\.hasClassicSidebar) private var hasClassicSidebar
-    @Environment(\.sidebarCarriesColumnMenu) private var sidebarCarriesColumnMenu
-    @Environment(\.isFrontmostColumn) private var isFrontmostColumn
 
     package init(store: StoreOf<WebFeature>) {
         self.store = store
@@ -28,31 +25,28 @@ package struct WebPanelView: View {
             .navigationTitle(page.title.isEmpty ? store.url.displayHost : page.title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .principal) {
-                    ClassicWebBar(
-                        siteName: page.title.isEmpty ? (page.url ?? store.url).displayHost : page.title,
-                        address: (page.url ?? store.url).displayAddress,
-                        canGoBack: !page.backForwardList.backList.isEmpty,
-                        canGoForward: !page.backForwardList.forwardList.isEmpty,
-                        isLoading: page.isLoading,
-                        back: { if let item = page.backForwardList.backList.last { page.load(item) } },
-                        forward: { if let item = page.backForwardList.forwardList.first { page.load(item) } },
-                        reload: { page.reload() },
-                        stop: { page.stopLoading() }
-                    )
-                    .frame(maxWidth: 520)
-                }
-                .sharedBackgroundVisibility(.hidden)
-
-                if !sidebarCarriesColumnMenu {
-                    ClassicColumnMenuToolbarItem(
-                        "Share",
-                        glyph: .action,
-                        isFrontmostColumn: isFrontmostColumn,
-                        hasClassicSidebar: hasClassicSidebar
-                    ) {
-                        WebPanelMenuItems(store: store)
+                ToolbarItemGroup(placement: .topBarLeading) {
+                    Button("Back", systemImage: "chevron.backward") {
+                        if let item = page.backForwardList.backList.last { page.load(item) }
                     }
+                    .disabled(page.backForwardList.backList.isEmpty)
+
+                    Button("Forward", systemImage: "chevron.forward") {
+                        if let item = page.backForwardList.forwardList.first { page.load(item) }
+                    }
+                    .disabled(page.backForwardList.forwardList.isEmpty)
+                }
+
+                ToolbarItem(placement: .topBarTrailing) {
+                    if page.isLoading {
+                        Button("Stop", systemImage: "xmark") { page.stopLoading() }
+                    } else {
+                        Button("Reload", systemImage: "arrow.clockwise") { page.reload() }
+                    }
+                }
+
+                ColumnMenuToolbarItem("Share", systemImage: "square.and.arrow.up") {
+                    WebPanelMenuItems(store: store)
                 }
             }
             .task {

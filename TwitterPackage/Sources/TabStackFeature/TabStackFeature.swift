@@ -47,13 +47,8 @@ package struct TabStack {
         /// Whether the display is wide enough to lay what's opened out as columns. Without columns a web page opens in
         /// Safari's view, as on iPhone, rather than as a screen on the stack.
         var canShowColumns = false
-        /// Counts requests to close every column, which the view slides away before removing.
-        package var closeAllColumnsRequests = 0
         package var path = StackState<TabStackPath.State>()
         var root: TabRoot.State
-        /// Always empty: the root column's stack binds to this while the path is shown in a separate detail column,
-        /// so the root keeps its identity (and scroll position) as the layout moves between one and two columns.
-        var rootColumnPath = StackState<TabStackPath.State>()
         /// A web page in Safari's view over everything, on a single stack.
         var safari: SafariPage?
         /// Asking for what a column already shows shakes it, a gentle "already here".
@@ -78,7 +73,6 @@ package struct TabStack {
         case delegate(ContentDelegate)
         case path(StackActionOf<TabStackPath>)
         case root(TabRoot.Action)
-        case rootColumnPath(StackActionOf<TabStackPath>)
         case safariDismissed
         /// The tab's button tapped while it's showing: back to the root, or at the root, its timeline to the top.
         case tabReselected
@@ -113,22 +107,14 @@ package struct TabStack {
                 guard let delegate = action.contentDelegate else { return .none }
                 return open(delegate, from: nil, state: &state)
 
-            case .rootColumnPath:
-                return .none
-
             case .safariDismissed:
                 state.safari = nil
                 return .none
 
             case .tabReselected:
-                // Back to the root; already there, a timeline goes back to its top and refreshes. Columns slide back
-                // to the root before they close, as a column's Close does; a stack just pops.
+                // Back to the root; already there, a timeline goes back to its top and refreshes.
                 guard state.path.isEmpty else {
-                    if state.canShowColumns {
-                        state.closeAllColumnsRequests += 1
-                    } else {
-                        state.path.removeAll()
-                    }
+                    state.path.removeAll()
                     return .none
                 }
                 guard case .feeds = state.root else { return .none }

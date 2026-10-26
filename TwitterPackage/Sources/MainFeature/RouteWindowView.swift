@@ -25,7 +25,7 @@ package struct RouteWindowView: View {
                     Text(message)
                 } actions: {
                     Button("Try Again") { store.send(.task) }
-                        .buttonStyle(.classicProminent)
+                        .buttonStyle(.borderedProminent)
                 }
             case .ready:
                 TabStackView(store: store.scope(state: \.stack, action: \.stack), title: store.route.windowTitle)

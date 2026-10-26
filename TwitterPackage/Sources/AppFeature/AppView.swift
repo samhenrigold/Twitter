@@ -36,7 +36,7 @@ private struct AppRootView: View {
                     Text(message)
                 } actions: {
                     Button("Try Again") { store.send(.retryButtonTapped) }
-                        .buttonStyle(.classicProminent)
+                        .buttonStyle(.borderedProminent)
                 }
             case .launching:
                 LaunchingView()

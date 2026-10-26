@@ -22,9 +22,6 @@ package struct ThreadView: View {
     @State private var position = ScrollPosition(idType: FeedItem.ID.self)
     @State private var spacerHeight: CGFloat = 0
     @State private var viewportHeight: CGFloat = 0
-    @Environment(\.hasClassicSidebar) private var hasClassicSidebar
-    @Environment(\.sidebarCarriesColumnMenu) private var sidebarCarriesColumnMenu
-    @Environment(\.isFrontmostColumn) private var isFrontmostColumn
 
     package var body: some View {
         ScrollView {
@@ -81,14 +78,8 @@ package struct ThreadView: View {
         .feedInteractions(store: store)
         .toolbar {
             if store.focusedTweet != nil {
-                if !sidebarCarriesColumnMenu {
-                    ClassicColumnMenuToolbarItem(
-                        "More",
-                        isFrontmostColumn: isFrontmostColumn,
-                        hasClassicSidebar: hasClassicSidebar
-                    ) {
-                        ThreadMenuItems(store: store)
-                    }
+                ColumnMenuToolbarItem("More") {
+                    ThreadMenuItems(store: store)
                 }
             }
         }

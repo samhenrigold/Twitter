@@ -65,7 +65,7 @@ private struct UserRow: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
 
                         if user.id != viewer?.id, !user.isBlocking, !user.blocksViewer {
-                            ClassicFollowButton(isFollowing: user.isFollowing) {
+                            FollowButton(isFollowing: user.isFollowing) {
                                 store.send(.followButtonTapped(user.id))
                             }
                         }
@@ -122,7 +122,7 @@ private struct UserListFooter: View {
                     Text(errorMessage)
                 } actions: {
                     Button("Try Again") { store.send(.retryButtonTapped) }
-                        .buttonStyle(.classic)
+                        .buttonStyle(.bordered)
                 }
             } else if store.isLoading {
                 ProgressView()
