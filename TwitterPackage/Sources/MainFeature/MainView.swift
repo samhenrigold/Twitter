@@ -11,6 +11,7 @@ package struct MainView: View {
     @Bindable var store: StoreOf<MainFeature>
     /// Per-window, so each main window reopens on the tab it was showing.
     @SceneStorage("selectedTab") private var savedTab = MainFeature.Tab.home
+    @Environment(\.scenePhase) private var scenePhase
     #if DEBUG
         @Environment(\.openWindow) private var openWindow
     #endif
@@ -33,6 +34,9 @@ package struct MainView: View {
                 #endif
             }
             .onChange(of: store.selectedTab) { savedTab = store.selectedTab }
+            .onChange(of: scenePhase) { old, new in
+                if old == .background, new != .background { store.send(.becameActive) }
+            }
             .task { await store.send(.task).finish() }
     }
 

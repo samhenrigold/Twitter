@@ -49,8 +49,8 @@ package struct TweetRow: View {
         }
         .animation(.spring(duration: 0.3, bounce: 0.35), value: engagement.like.isOn)
         .animation(.spring(duration: 0.3, bounce: 0.35), value: engagement.repost.isOn)
-        // Opaque, so the post lifted for its context menu isn't see-through.
-        .background(.background)
+        // Opaque, so the post lifted for its context menu isn't see-through. Twitter's pale blue while unread.
+        .background(item.isUnread ? AnyShapeStyle(.twitterUnread) : AnyShapeStyle(.background))
         .contentShape(.rect)
         .onTapGesture { store.send(.tweetTapped(tweet)) }
         .contextMenu {
@@ -713,8 +713,8 @@ package struct NotificationRow: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        // Opaque, so the row lifted for its context menu isn't see-through.
-        .background(.background)
+        // Opaque, so the row lifted for its context menu isn't see-through. Twitter's pale blue while unread.
+        .background(notification.isUnread ? AnyShapeStyle(.twitterUnread) : AnyShapeStyle(.background))
         .contentShape(.rect)
         .onTapGesture {
             if let tweet = notification.tweet {

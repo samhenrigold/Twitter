@@ -33,6 +33,8 @@ package struct FeedsFeature {
         case feeds(IdentifiedActionOf<FeedFeature>)
         /// Its tab's button tapped while it's showing: the feed on screen goes back to the top and refreshes.
         case reselected
+        /// Its tab was chosen (see ``FeedFeature/Action/tabSelected(hasNew:)``).
+        case tabSelected(hasNew: Bool)
     }
 
     package init() {}
@@ -52,6 +54,9 @@ package struct FeedsFeature {
 
             case .reselected:
                 return .send(.feeds(.element(id: state.selection, action: .reselected)))
+
+            case .tabSelected(let hasNew):
+                return .send(.feeds(.element(id: state.selection, action: .tabSelected(hasNew: hasNew))))
             }
         }
         .forEach(\.feeds, action: \.feeds) {

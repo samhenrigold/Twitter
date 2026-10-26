@@ -20,8 +20,12 @@ package enum TimelineParser {
         }
 
         var entries: [JSON] = []
+        // Notifications: entries sorted above this are unread.
+        var unreadAbove: String?
         for instruction in instructions {
             switch instruction["type"] as? String {
+            case "TimelineMarkEntriesUnreadGreaterThanSortIndex":
+                unreadAbove = (instruction["sort_index"] ?? instruction["sortIndex"]).map { "\($0)" }
             case "TimelineAddEntries":
                 entries += instruction["entries"] as? [JSON] ?? []
             case "TimelinePinEntry", "TimelineReplaceEntry":
@@ -59,7 +63,14 @@ package enum TimelineParser {
                 }
             case "TimelineTimelineItem":
                 guard let itemContent = content["itemContent"] as? JSON else { continue }
-                if let item = feedItem(from: itemContent, entryID: entryID, context: content) { append(item) }
+                if var item = feedItem(from: itemContent, entryID: entryID, context: content) {
+                    if let unreadAbove, let sortIndex = entry["sortIndex"].map({ "\($0)" }),
+                        isSortIndex(sortIndex, above: unreadAbove)
+                    {
+                        item.markUnread()
+                    }
+                    append(item)
+                }
                 if itemContent["itemType"] as? String == "TimelineTimelineCursor"
                     || itemContent["__typename"] as? String == "TimelineTimelineCursor",
                     itemContent["cursorType"] as? String == "Bottom"
@@ -187,6 +198,11 @@ package enum TimelineParser {
         // Twitter now says "Post"; the app says "Tweet", capitalized as Twitter always wrote it.
         text = text.replacingOccurrences(of: #"\b[Pp]ost(s?)\b"#, with: "Tweet$1", options: .regularExpression)
         return text.isEmpty ? Tombstone(id: id, reason: .unavailable) : Tombstone(id: id, text: text)
+    }
+
+    /// Sort indexes are decimal numbers too long for an Int64 to be sure of: compared as digit strings.
+    static func isSortIndex(_ index: String, above marker: String) -> Bool {
+        index.count != marker.count ? index.count > marker.count : index > marker
     }
 
     /// Recursively finds the first `instructions` array, whatever the operation's wrapper keys are.
@@ -790,5 +806,20 @@ package enum TimelineParser {
         if let value = value as? Double { return value }
         if let value = value as? Int { return Double(value) }
         return 0
+    }
+}
+
+extension FeedItem {
+    mutating func markUnread() {
+        switch self {
+        case .notification(var notification):
+            notification.isUnread = true
+            self = .notification(notification)
+        case .tweet(var tweet):
+            tweet.isUnread = true
+            self = .tweet(tweet)
+        case .tombstone, .showMore:
+            break
+        }
     }
 }

@@ -35,6 +35,8 @@ package struct MainFeature {
     }
 
     package enum Action: BindableAction {
+        /// The app came back to the foreground: the badge checks for more, and the tab showing refreshes if it's stale.
+        case becameActive
         case binding(BindingAction<State>)
         case bookmarks(TabStack.Action)
         case compose(PresentationAction<ComposeFeature.Action>)
@@ -90,9 +92,21 @@ package struct MainFeature {
                     }
                 }
 
+            case .becameActive:
+                return .merge(
+                    .send(tabSelected(state.selectedTab, hasNew: false)),
+                    .run { send in
+                        if let count = try? await client.unreadNotificationCount() {
+                            await send(.unreadNotificationsResponse(count))
+                        }
+                    }
+                )
+
             case .binding(\.selectedTab):
+                // Twitter's count says there's something new; otherwise it refreshes if it's been a while.
+                let hasNew = state.selectedTab == .notifications && state.unreadNotifications > 0
                 if state.selectedTab == .notifications { state.unreadNotifications = 0 }
-                return .none
+                return .send(tabSelected(state.selectedTab, hasNew: hasNew))
 
             case .task:
                 return .run { send in
@@ -106,9 +120,13 @@ package struct MainFeature {
                 .cancellable(id: CancelID.unreadPolling, cancelInFlight: true)
 
             case .unreadNotificationsResponse(let count):
-                // Already reading them: nothing to badge.
-                state.unreadNotifications = state.selectedTab == .notifications ? 0 : count
-                return .none
+                // Already reading them: nothing to badge, but they load.
+                guard state.selectedTab == .notifications else {
+                    state.unreadNotifications = count
+                    return .none
+                }
+                state.unreadNotifications = 0
+                return count > 0 ? .send(.notifications(.tabSelected(hasNew: true))) : .none
 
             case .binding, .bookmarks, .compose, .delegate, .explore, .home, .notifications, .profile:
                 return .none
@@ -116,6 +134,16 @@ package struct MainFeature {
         }
         .ifLet(\.$compose, action: \.compose) {
             ComposeFeature()
+        }
+    }
+
+    private func tabSelected(_ tab: Tab, hasNew: Bool) -> Action {
+        switch tab {
+        case .bookmarks: .bookmarks(.tabSelected(hasNew: hasNew))
+        case .explore: .explore(.tabSelected(hasNew: hasNew))
+        case .home: .home(.tabSelected(hasNew: hasNew))
+        case .notifications: .notifications(.tabSelected(hasNew: hasNew))
+        case .profile: .profile(.tabSelected(hasNew: hasNew))
         }
     }
 }

@@ -11,6 +11,7 @@ extension TwitterClient: DependencyKey {
             deleteTweet: { try await store.session().deleteTweet(id: $0) },
             feed: { source, cursor in try await store.session().feed(source, cursor: cursor) },
             lists: { userID, cursor in try await store.session().lists(userID: userID, cursor: cursor) },
+            markNotificationsRead: { cursor in try await store.session().markNotificationsRead(cursor: cursor) },
             post: { text, replyTo, quoteURL, media in
                 let session = try await store.session()
                 var mediaIDs: [String] = []

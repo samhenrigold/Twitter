@@ -83,6 +83,8 @@ package struct TabStack {
         case safariDismissed
         /// The tab's button tapped while it's showing: back to the root, or at the root, its timeline to the top.
         case tabReselected
+        /// The tab was chosen: its timeline refreshes if it's gone stale, or Twitter has said there's something new.
+        case tabSelected(hasNew: Bool)
     }
 
     package init() {}
@@ -126,6 +128,10 @@ package struct TabStack {
                 }
                 guard case .feeds = state.root else { return .none }
                 return .send(.root(.feeds(.reselected)))
+
+            case .tabSelected(let hasNew):
+                guard case .feeds = state.root else { return .none }
+                return .send(.root(.feeds(.tabSelected(hasNew: hasNew))))
             }
         }
         .forEach(\.path, action: \.path)

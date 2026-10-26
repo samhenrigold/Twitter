@@ -20,6 +20,8 @@ package struct FeedFeature {
         var errorMessage: String?
         var hasLoaded = false
         var isLoading = false
+        /// When the timeline last came fresh from Twitter (not the cache).
+        var lastRefreshed: Date?
         var items: IdentifiedArrayOf<FeedItem> = []
         /// Whether the top of the timeline is on screen. Seeing the top is what counts as reading.
         var isAtTop = true
@@ -57,6 +59,8 @@ package struct FeedFeature {
         }
 
         static let earlierConversationID = "cursor-top-conversation"
+        /// How long a timeline stays fresh: coming back to its tab after longer than this loads what's new.
+        static let staleInterval: TimeInterval = 120
 
         /// In a thread, joins the conversation above the focused post into one line down to it, and offers whatever
         /// Twitter left out above it (a long conversation sends only its last few posts, with a cursor for the rest).
@@ -122,6 +126,9 @@ package struct FeedFeature {
         case refreshPulled
         /// Its tab's button tapped while it's showing: back to the top, and fetch what's new.
         case reselected
+        /// Its tab was chosen: refreshes if it's been a while, or right away when Twitter has said there's something new
+        /// (`hasNew`, for Notifications' unread count).
+        case tabSelected(hasNew: Bool)
         case replyButtonTapped(Tweet)
         case repostButtonTapped(Tweet)
         case repostsButtonTapped(Tweet)
@@ -308,6 +315,7 @@ package struct FeedFeature {
                 state.isLoading = false
                 state.hasLoaded = true
                 state.errorMessage = nil
+                state.lastRefreshed = now
                 let merge = TimelineMerge(
                     fresh: page,
                     onScreen: state.items,
@@ -319,17 +327,21 @@ package struct FeedFeature {
                 state.newPostCount = state.isAtTop ? 0 : state.newPostCount + merge.newCount
                 state.$engagements.withLock { $0.refresh(from: page.items.lazy.flatMap(\.tweets)) }
                 let merged = FeedPage(cachedItems: Array(merge.items), bottomCursor: state.bottomCursor)
-                return .run { [source = state.source] _ in
-                    await withErrorReporting {
-                        try await timelineCache.save(source, merged, true)
-                    }
-                }
+                return .merge(
+                    .run { [source = state.source] _ in
+                        await withErrorReporting {
+                            try await timelineCache.save(source, merged, true)
+                        }
+                    },
+                    markRead(page, source: state.source)
+                )
 
             case .pageResponse(.success(let page), let isRefresh):
                 state.isLoading = false
                 state.hasLoaded = true
                 state.errorMessage = nil
                 if isRefresh {
+                    state.lastRefreshed = now
                     state.items = IdentifiedArray(page.items, uniquingIDsWith: { first, _ in first })
                     state.showEarlierConversation(above: page.topCursor)
                 } else {
@@ -377,6 +389,12 @@ package struct FeedFeature {
 
             case .reselected:
                 state.scrollToTopRequests += 1
+                return loadPage(state: &state, isRefresh: true)
+
+            case .tabSelected(let hasNew):
+                guard state.hasLoaded, !state.isLoading else { return .none }
+                let isStale = state.lastRefreshed.map { now.timeIntervalSince($0) > State.staleInterval } ?? true
+                guard hasNew || isStale else { return .none }
                 return loadPage(state: &state, isRefresh: true)
 
             case .replyButtonTapped(let tweet):
@@ -480,6 +498,15 @@ package struct FeedFeature {
         .ifLet(\.$alert, action: \.alert)
         .ifLet(\.$preview, action: \.preview) {
             FeedFeature()
+        }
+    }
+
+    /// Notifications on screen are read: Twitter is told, as its own apps do on showing them, which clears the unread
+    /// count. Those marked unread stay marked until the next refresh.
+    private func markRead(_ page: FeedPage, source: FeedSource) -> EffectOf<Self> {
+        guard source == .notifications(.all), let cursor = page.topCursor else { return .none }
+        return .run { _ in
+            try await client.markNotificationsRead(cursor)
         }
     }
 

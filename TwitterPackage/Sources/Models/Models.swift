@@ -136,6 +136,8 @@ package struct FeedTweet: Identifiable, Hashable, Codable, Sendable {
     /// Draws a thread line down to the next post (conversation modules and reply chains).
     package var connectsBelow = false
     package var connectsAbove = false
+    /// A mention or reply in Notifications that arrived since they were last read.
+    package var isUnread = false
 }
 
 package struct TwitterNotification: Identifiable, Hashable, Codable, Sendable {
@@ -148,6 +150,8 @@ package struct TwitterNotification: Identifiable, Hashable, Codable, Sendable {
     package var date: Date?
     package var tweet: Tweet?
     package var tweetID: String?
+    /// Arrived since Notifications were last read.
+    package var isUnread = false
 }
 
 package enum FeedItem: Identifiable, Hashable, Codable, Sendable {
@@ -155,6 +159,15 @@ package enum FeedItem: Identifiable, Hashable, Codable, Sendable {
     case notification(TwitterNotification)
     case tombstone(Tombstone)
     case showMore(ShowMoreCursor)
+
+    /// Arrived in Notifications since they were last read.
+    package var isUnread: Bool {
+        switch self {
+        case .tweet(let item): item.isUnread
+        case .notification(let item): item.isUnread
+        case .tombstone, .showMore: false
+        }
+    }
 
     package var id: String {
         switch self {

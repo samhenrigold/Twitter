@@ -517,6 +517,11 @@ actor TwitterWebSession {
         return (json?["ntab_unread_count"] as? Int) ?? 0
     }
 
+    /// Where Notifications were last read up to, as the web client reports it on opening them.
+    func markNotificationsRead(cursor: String) async throws {
+        _ = try await restPost("/i/api/2/notifications/all/last_seen_cursor.json", form: ["cursor": cursor])
+    }
+
     /// What's trending, from the web client's Explore page.
     func trends() async throws -> [Trend] {
         TimelineParser.trends(from: try await graphQL("ExplorePage", variables: [:]))

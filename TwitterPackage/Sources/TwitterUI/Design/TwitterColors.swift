@@ -16,6 +16,8 @@ extension Color {
     package static let twitterRepost = Color(.twitterRepost)
     /// `borderMedia`: 5% black or white.
     package static let twitterMediaBorder = Color(.twitterMediaBorder)
+    /// The pale blue behind notifications that arrived since they were last read.
+    package static let twitterUnread = Color(.twitterUnread)
 }
 
 extension ShapeStyle where Self == Color {
@@ -26,6 +28,7 @@ extension ShapeStyle where Self == Color {
     package static var twitterLike: Color { Color.twitterLike }
     package static var twitterRepost: Color { Color.twitterRepost }
     package static var twitterMediaBorder: Color { Color.twitterMediaBorder }
+    package static var twitterUnread: Color { Color.twitterUnread }
 }
 
 /// A full-bleed hairline in the divider colour, in place of the system `Divider`.

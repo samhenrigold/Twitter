@@ -19,6 +19,9 @@ package struct TwitterClient: Sendable {
     package var deleteTweet: @Sendable (_ id: String) async throws -> Void
     package var feed: @Sendable (_ source: FeedSource, _ cursor: String?) async throws -> FeedPage
     package var lists: @Sendable (_ userID: String, _ cursor: String?) async throws -> ListPage
+    /// Tells Twitter Notifications have been read up to `cursor` (a notifications page's top cursor), which clears
+    /// the unread count and the unread marks.
+    package var markNotificationsRead: @Sendable (_ cursor: String) async throws -> Void
     package var post:
         @Sendable (
             _ text: String, _ replyTo: String?, _ quoteURL: URL?, _ media: [MediaUpload]
@@ -51,6 +54,7 @@ extension TwitterClient: TestDependencyKey {
             deleteTweet: { _ in },
             feed: { source, cursor in .mock(source, cursor: cursor) },
             lists: { _, _ in .mock },
+            markNotificationsRead: { _ in },
             post: { _, _, _, _ in "preview" },
             restoreSession: { .mock },
             setBlocking: { _, _ in },

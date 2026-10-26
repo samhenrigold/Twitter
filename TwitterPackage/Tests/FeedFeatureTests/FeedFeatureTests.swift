@@ -17,6 +17,7 @@ struct FeedFeatureTests {
         let store = TestStore(initialState: FeedFeature.State(source: .home(following: false))) {
             FeedFeature()
         } withDependencies: {
+            $0.date.now = Date(timeIntervalSince1970: 0)
             $0[TwitterClient.self].feed = { _, cursor in
                 #expect(cursor == nil)
                 return page
@@ -29,9 +30,60 @@ struct FeedFeatureTests {
         await store.receive(\.pageResponse) {
             $0.isLoading = false
             $0.hasLoaded = true
+            $0.lastRefreshed = Date(timeIntervalSince1970: 0)
             $0.items = IdentifiedArray(uniqueElements: page.items)
             $0.bottomCursor = "next"
         }
+    }
+
+    @Test
+    func choosingTheTabRefreshesOnlyOnceStaleOrWhenThereIsSomethingNew() async {
+        var state = FeedFeature.State(source: .home(following: false))
+        state.hasLoaded = true
+        state.lastRefreshed = Date(timeIntervalSince1970: 0)
+        let store = TestStore(initialState: state) {
+            FeedFeature()
+        } withDependencies: {
+            $0.date.now = Date(timeIntervalSince1970: 60)
+            $0[TwitterClient.self].feed = { _, _ in FeedPage(items: [], bottomCursor: nil, topCursor: nil) }
+            $0[TimelineCache.self].save = { _, _, _ in }
+        }
+
+        // A minute on: still fresh.
+        await store.send(.tabSelected(hasNew: false))
+        // Something new: refreshes anyway.
+        await store.send(.tabSelected(hasNew: true)) {
+            $0.isLoading = true
+        }
+        await store.receive(\.pageResponse) {
+            $0.isLoading = false
+            $0.lastRefreshed = Date(timeIntervalSince1970: 60)
+        }
+    }
+
+    @Test
+    func loadingNotificationsMarksThemRead() async {
+        let page = FeedPage(items: [], bottomCursor: nil, topCursor: "top-cursor")
+        let readCursor = LockIsolated<String?>(nil)
+        var state = FeedFeature.State(source: .notifications(.all))
+        state.hasLoaded = true
+        let store = TestStore(initialState: state) {
+            FeedFeature()
+        } withDependencies: {
+            $0.date.now = Date(timeIntervalSince1970: 0)
+            $0[TwitterClient.self].feed = { _, _ in page }
+            $0[TwitterClient.self].markNotificationsRead = { readCursor.setValue($0) }
+            $0[TimelineCache.self].save = { _, _, _ in }
+        }
+
+        await store.send(.refreshPulled) {
+            $0.isLoading = true
+        }
+        await store.receive(\.pageResponse) {
+            $0.isLoading = false
+            $0.lastRefreshed = Date(timeIntervalSince1970: 0)
+        }
+        #expect(readCursor.value == "top-cursor")
     }
 
     @Test
@@ -240,6 +292,7 @@ struct FeedFeatureTests {
         ) {
             FeedFeature()
         } withDependencies: {
+            $0.date.now = Date(timeIntervalSince1970: 0)
             $0[TwitterClient.self].feed = { _, cursor in
                 cursor == "top"
                     ? FeedPage(items: [.tweet(FeedTweet(tweet: root))], bottomCursor: nil, topCursor: nil)
@@ -264,6 +317,7 @@ struct FeedFeatureTests {
         await store.receive(\.pageResponse) {
             $0.isLoading = false
             $0.hasLoaded = true
+            $0.lastRefreshed = Date(timeIntervalSince1970: 0)
             $0.items = [
                 .showMore(earlier), joined(parent, above: false, below: true), joined(reply, above: true, below: false)
             ]
@@ -422,6 +476,7 @@ struct FeedCacheTests {
         let store = TestStore(initialState: FeedFeature.State(source: .home(following: false))) {
             FeedFeature()
         } withDependencies: {
+            $0.date.now = Date(timeIntervalSince1970: 0)
             $0[TimelineCache.self].load = { _ in cached }
             $0[TimelineCache.self].topItemID = { _ in FeedItem.tweet(FeedTweet(tweet: Tweet.mocks[0])).id }
             $0[TimelineCache.self].save = { _, page, isRefresh in
@@ -445,6 +500,7 @@ struct FeedCacheTests {
         await store.receive(\.pageResponse) {
             $0.isLoading = false
             $0.hasLoaded = true
+            $0.lastRefreshed = Date(timeIntervalSince1970: 0)
             $0.items = merged
             $0.bottomCursor = "stale"
             $0.cachedBottomCursor = nil
@@ -488,6 +544,7 @@ struct FeedCacheTests {
         let store = TestStore(initialState: state) {
             FeedFeature()
         } withDependencies: {
+            $0.date.now = Date(timeIntervalSince1970: 0)
             $0[TwitterClient.self].feed = { _, _ in
                 FeedPage(items: [newer, reading], bottomCursor: "page", topCursor: nil)
             }
@@ -498,6 +555,7 @@ struct FeedCacheTests {
         }
         await store.receive(\.pageResponse) {
             $0.isLoading = false
+            $0.lastRefreshed = Date(timeIntervalSince1970: 0)
             $0.items = [newer, reading]
             $0.newPostCount = 1
         }

@@ -18,6 +18,7 @@ struct TabStackFeatureTests {
             TabStack()
         } withDependencies: {
             $0[TwitterClient.self] = .previewValue
+            $0.date.now = Date(timeIntervalSince1970: 0)
         }
         store.exhaustivity = .off
 

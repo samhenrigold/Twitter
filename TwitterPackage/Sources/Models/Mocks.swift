@@ -319,6 +319,26 @@ extension FeedPage {
                 topCursor: ancestors.isEmpty ? nil : mockEarlierCursor
             )
         }
+        if source == .notifications(.all) {
+            // What arrived since they were last read is marked unread, as Twitter marks it.
+            let users = Array(User.mockCrowd.prefix(3))
+            let notifications = [
+                TwitterNotification(
+                    id: "n1", icon: "heart_icon", message: "\(users[0].name) and 2 others liked your Tweet",
+                    boldRanges: [0..<users[0].name.unicodeScalars.count], users: users,
+                    date: .now.addingTimeInterval(-300),
+                    tweet: Tweet.mocks[0], tweetID: Tweet.mocks[0].id, isUnread: true),
+                TwitterNotification(
+                    id: "n2", icon: "person_icon", message: "\(users[1].name) followed you",
+                    boldRanges: [0..<users[1].name.unicodeScalars.count], users: [users[1]],
+                    date: .now.addingTimeInterval(-7200))
+            ]
+            var mention = FeedTweet(id: Tweet.mockReply.id, tweet: .mockReply)
+            mention.isUnread = true
+            return FeedPage(
+                items: [.tweet(mention)] + notifications.map(FeedItem.notification), bottomCursor: nil,
+                topCursor: "mock-top")
+        }
         if case .searchMedia = source {
             // A search's photos and videos: only posts with media.
             return FeedPage(items: [item(.mockPhotos)], bottomCursor: nil, topCursor: nil)
