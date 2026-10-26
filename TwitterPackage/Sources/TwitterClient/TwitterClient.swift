@@ -39,6 +39,8 @@ package struct TwitterClient: Sendable {
     package var unreadNotificationCount: @Sendable () async throws -> Int
     package var user: @Sendable (_ screenName: String) async throws -> User
     package var users: @Sendable (_ source: UserListSource, _ cursor: String?) async throws -> UserPage
+    /// Votes for `choice` (zero-based) in a post's poll.
+    package var vote: @Sendable (_ tweetID: String, _ poll: Poll, _ choice: Int) async throws -> Void
 }
 
 extension TwitterClient: TestDependencyKey {
@@ -70,7 +72,8 @@ extension TwitterClient: TestDependencyKey {
             user: { screenName in
                 User.mocks.first { $0.screenName.lowercased() == screenName.lowercased() } ?? .mock
             },
-            users: { source, cursor in .mock(source, cursor: cursor) }
+            users: { source, cursor in .mock(source, cursor: cursor) },
+            vote: { _, _, _ in }
         )
     }
 }

@@ -479,7 +479,7 @@ package enum TimelineParser {
         }
         guard !choices.isEmpty else { return nil }
         let selected = (values["selected_choice"]?["string_value"] as? String).flatMap(Int.init)
-        return Poll(
+        var poll = Poll(
             choices: choices,
             endsAt: (values["end_datetime_utc"]?["string_value"] as? String).flatMap(isoDate),
             countsAreFinal: values["counts_are_final"]?["boolean_value"] as? Bool ?? false,
@@ -487,6 +487,9 @@ package enum TimelineParser {
             imageURL: ((values["image_large"]?["image_value"] as? JSON)?["url"] as? String)
                 .flatMap(URL.init(string:))
         )
+        poll.cardURI = (legacy["url"] as? String) ?? (card?["rest_id"] as? String)
+        poll.cardName = name
+        return poll
     }
 
     /// `conversation_control` (the author's reply policy) and `limitedActionResults` (whether the viewer may reply).

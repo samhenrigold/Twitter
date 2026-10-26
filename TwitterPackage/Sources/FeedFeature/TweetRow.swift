@@ -138,7 +138,7 @@ package struct TweetRow: View {
             }
 
             if let poll = tweet.poll {
-                PollView(poll: poll)
+                PollView(poll: poll) { store.send(.pollChoiceTapped(tweetID: tweet.id, choice: $0)) }
             }
 
             if !tweet.media.isEmpty {

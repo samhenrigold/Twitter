@@ -150,6 +150,7 @@ struct TimelineParserTests {
     func poll() throws {
         var result = tweetResult(id: "10", text: "Which?")
         result["card"] = [
+            "rest_id": "card://99",
             "legacy": [
                 "name": "poll3choice_text_only",
                 "binding_values": [
@@ -172,6 +173,8 @@ struct TimelineParserTests {
         #expect(poll.countsAreFinal)
         #expect(poll.endsAt == ISO8601DateFormatter().date(from: "2024-05-01T12:00:00Z"))
         #expect(poll.fraction(of: poll.choices[1]) == 0.75)
+        #expect(poll.cardURI == "card://99")
+        #expect(poll.cardName == "poll3choice_text_only")
     }
 
     @Test

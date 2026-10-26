@@ -36,7 +36,13 @@ extension TwitterClient: DependencyKey {
             typeahead: { try await store.session().typeahead($0) },
             unreadNotificationCount: { try await store.session().unreadNotificationCount() },
             user: { try await store.session().user(screenName: $0) },
-            users: { source, cursor in try await store.session().users(source, cursor: cursor) }
+            users: { source, cursor in try await store.session().users(source, cursor: cursor) },
+            vote: { tweetID, poll, choice in
+                guard let cardURI = poll.cardURI, let cardName = poll.cardName else {
+                    throw TwitterError.api("This poll can't be voted in.")
+                }
+                try await store.session().vote(tweetID: tweetID, cardURI: cardURI, cardName: cardName, choice: choice)
+            }
         )
     }
 }

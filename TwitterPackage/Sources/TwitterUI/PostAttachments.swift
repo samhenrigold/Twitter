@@ -146,12 +146,14 @@ package struct CommunityNoteCard: View {
     }
 }
 
-/// A poll's current or final results (read-only).
+/// A poll: its choices to vote for while it's open and you haven't, its current or final results otherwise.
 package struct PollView: View {
     let poll: Poll
+    let vote: ((Int) -> Void)?
 
-    package init(poll: Poll) {
+    package init(poll: Poll, vote: ((Int) -> Void)? = nil) {
         self.poll = poll
+        self.vote = vote
     }
 
     package var body: some View {
@@ -166,12 +168,26 @@ package struct PollView: View {
 
             // X rejects duplicate choices, so the label is a stable identity.
             ForEach(poll.choices.enumerated(), id: \.element.label) { index, choice in
-                PollChoiceRow(
-                    choice: choice,
-                    fraction: poll.fraction(of: choice),
-                    hasMostVotes: choice.count > 0 && choice.count == poll.highestCount,
-                    isSelected: poll.selectedChoiceIndex == index
-                )
+                if let vote, poll.canVote(now: .now) {
+                    // Twitter's outlined choices, before you've voted.
+                    Button {
+                        vote(index)
+                    } label: {
+                        Text(choice.label)
+                            .fontWeight(.semibold)
+                            .frame(maxWidth: .infinity, minHeight: 32)
+                    }
+                    .buttonStyle(.bordered)
+                    .buttonBorderShape(.capsule)
+                    .tint(.accentColor)
+                } else {
+                    PollChoiceRow(
+                        choice: choice,
+                        fraction: poll.fraction(of: choice),
+                        hasMostVotes: choice.count > 0 && choice.count == poll.highestCount,
+                        isSelected: poll.selectedChoiceIndex == index
+                    )
+                }
             }
 
             PollSummary(poll: poll)

@@ -203,6 +203,19 @@ extension Tweet {
         return tweet
     }()
 
+    /// An open poll the viewer hasn't voted in.
+    package static let mockOpenPoll: Tweet = {
+        var tweet = Tweet.mock(id: "113", author: .mockFriend, text: "Tabs or spaces?", secondsAgo: 2_400)
+        var poll = Poll(
+            choices: [.init(label: "Tabs", count: 340), .init(label: "Spaces", count: 1_022)],
+            endsAt: Date(timeIntervalSinceNow: 20 * 3_600)
+        )
+        poll.cardURI = "card://113"
+        poll.cardName = "poll2choice_text_only"
+        tweet.poll = poll
+        return tweet
+    }()
+
     package static let mockFinalPoll: Tweet = {
         var tweet = Tweet.mock(id: "106", text: "Tabs or spaces?", secondsAgo: 172_800)
         tweet.poll = Poll(
@@ -333,7 +346,8 @@ extension FeedPage {
         items.insert(item(.mockPoll), at: 2)
         items.insert(item(.mockReply), at: 3)
         items.insert(item(.mockJapanese), at: 4)
-        items.insert(.tombstone(Tombstone(id: "tweet-109", text: "This Tweet was deleted by the Tweet author.")), at: 5)
+        items.insert(item(.mockOpenPoll), at: 5)
+        items.insert(.tombstone(Tombstone(id: "tweet-109", text: "This Tweet was deleted by the Tweet author.")), at: 6)
         items += [item(.mockCommunityNote), item(.mockRestricted), item(.mockQuotingDeleted), item(.mockFinalPoll)]
         // `--mock-media`: photos to open in the viewer, kept out of the default set so snapshots stay put.
         if ProcessInfo.processInfo.arguments.contains("--mock-media") {

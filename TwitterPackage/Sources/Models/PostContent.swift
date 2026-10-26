@@ -60,6 +60,9 @@ package struct Poll: Hashable, Codable, Sendable {
     /// Zero-based index of the viewer's vote.
     package var selectedChoiceIndex: Int?
     package var imageURL: URL?
+    /// The poll card (`card://…`) and its kind (`poll2choice_text_only`), which a vote names.
+    package var cardURI: String?
+    package var cardName: String?
 
     package init(
         choices: [Choice],
@@ -79,6 +82,11 @@ package struct Poll: Hashable, Codable, Sendable {
 
     package func isFinal(now: Date) -> Bool {
         countsAreFinal || (endsAt.map { $0 <= now } ?? false)
+    }
+
+    /// Open, not voted in yet, and identifiable to vote in.
+    package func canVote(now: Date) -> Bool {
+        !isFinal(now: now) && selectedChoiceIndex == nil && cardURI != nil && cardName != nil
     }
 
     package func fraction(of choice: Choice) -> Double {

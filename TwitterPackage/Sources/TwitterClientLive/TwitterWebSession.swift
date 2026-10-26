@@ -490,6 +490,27 @@ actor TwitterWebSession {
             from: try await rest("/i/api/1.1/search/typeahead.json?" + (components.percentEncodedQuery ?? "")))
     }
 
+    /// A poll vote, through the cards passthrough x.com's poll uses.
+    func vote(tweetID: String, cardURI: String, cardName: String, choice: Int) async throws {
+        var components = URLComponents()
+        components.queryItems = [
+            URLQueryItem(name: "twitter:string:card_uri", value: cardURI),
+            URLQueryItem(name: "twitter:long:original_tweet_id", value: tweetID),
+            URLQueryItem(name: "twitter:string:response_card_name", value: cardName),
+            URLQueryItem(name: "twitter:string:cards_platform", value: "Web-12"),
+            URLQueryItem(name: "twitter:string:selected_choice", value: String(choice + 1))
+        ]
+        let url = URL(string: "https://caps.x.com/v2/capi/passthrough/1")!
+        var request = apiRequest(
+            url: url, method: "POST", body: Data((components.percentEncodedQuery ?? "").utf8),
+            transactionPath: url.path(), generator: catalog?.transactionGenerator)
+        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        let (json, status) = try await perform(request)
+        guard (200..<300).contains(status) else {
+            throw TwitterError.http(status, Self.errorMessages(json).first ?? "")
+        }
+    }
+
     /// The unread notifications count the web client badges its Notifications tab with.
     func unreadNotificationCount() async throws -> Int {
         let json = try await rest("/i/api/2/badge_count/badge_count.json?supports_ntab_urt=1") as? [String: Any]

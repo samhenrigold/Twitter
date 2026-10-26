@@ -107,6 +107,8 @@ package struct FeedFeature {
         case likesButtonTapped(Tweet)
         case linkTapped(URL)
         case muteButtonTapped(User)
+        case pollChoiceTapped(tweetID: Tweet.ID, choice: Int)
+        case pollVoteFailed(tweetID: Tweet.ID, choice: Int)
         case muteFailed(userID: String, isMuting: Bool)
         case newPostsButtonTapped
         case pageResponse(Result<FeedPage, any Error>, isRefresh: Bool)
@@ -145,6 +147,7 @@ package struct FeedFeature {
     }
 
     @Dependency(\.continuousClock) var clock
+    @Dependency(\.date.now) var now
     @Dependency(TwitterClient.self) var client
     @Dependency(TweetEngagementSync.self) var engagementSync
     @Dependency(ImageLoader.self) var imageLoader
@@ -222,6 +225,26 @@ package struct FeedFeature {
                 } catch: { _, send in
                     await send(.muteFailed(userID: user.id, isMuting: !isMuting))
                 }
+
+            case .pollChoiceTapped(let tweetID, let choice):
+                guard let poll = state.poll(of: tweetID), poll.canVote(now: now) else { return .none }
+                // Counted at once, as Twitter shows the results the moment you vote.
+                state.updatePoll(of: tweetID) {
+                    $0.choices[choice].count += 1
+                    $0.selectedChoiceIndex = choice
+                }
+                return .run { _ in
+                    try await client.vote(tweetID, poll, choice)
+                } catch: { _, send in
+                    await send(.pollVoteFailed(tweetID: tweetID, choice: choice))
+                }
+
+            case .pollVoteFailed(let tweetID, let choice):
+                state.updatePoll(of: tweetID) {
+                    $0.choices[choice].count -= 1
+                    $0.selectedChoiceIndex = nil
+                }
+                return .none
 
             case .muteFailed(let userID, let isMuting):
                 state.setMuting(isMuting, userID: userID)
@@ -532,6 +555,26 @@ extension FeedFeature.State {
     mutating func setBlocking(_ isBlocking: Bool, userID: String) {
         for id in items.ids {
             items[id: id]?.updateUser(id: userID) { $0.isBlocking = isBlocking }
+        }
+    }
+
+    /// The poll of post `tweetID`, wherever it shows (or is quoted).
+    func poll(of tweetID: Tweet.ID) -> Poll? {
+        for item in items {
+            if let poll = item.tweets.first(where: { $0.id == tweetID })?.poll { return poll }
+        }
+        return nil
+    }
+
+    mutating func updatePoll(of tweetID: Tweet.ID, _ update: (inout Poll) -> Void) {
+        for id in items.ids {
+            guard case .tweet(var feedTweet) = items[id: id] else { continue }
+            if feedTweet.tweet.id == tweetID, feedTweet.tweet.poll != nil { update(&feedTweet.tweet.poll!) }
+            for index in feedTweet.tweet.quoted.indices
+            where feedTweet.tweet.quoted[index].id == tweetID && feedTweet.tweet.quoted[index].poll != nil {
+                update(&feedTweet.tweet.quoted[index].poll!)
+            }
+            items[id: id] = .tweet(feedTweet)
         }
     }
 

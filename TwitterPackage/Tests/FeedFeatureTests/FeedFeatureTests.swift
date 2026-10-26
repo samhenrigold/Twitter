@@ -310,6 +310,32 @@ struct FeedFeatureTests {
     }
 
     @Test
+    func votingCountsAtOnceAndUndoesIfTwitterRefuses() async {
+        struct Refused: Error {}
+        let poll = Tweet.mockOpenPoll
+        var state = FeedFeature.State(source: .home(following: false), items: [.tweet(FeedTweet(tweet: poll))])
+        state.hasLoaded = true
+        let store = TestStore(initialState: state) {
+            FeedFeature()
+        } withDependencies: {
+            $0.date.now = Date()
+            $0[TwitterClient.self].vote = { tweetID, _, choice in
+                #expect(tweetID == poll.id)
+                #expect(choice == 1)
+                throw Refused()
+            }
+        }
+        store.exhaustivity = .off
+
+        await store.send(.pollChoiceTapped(tweetID: poll.id, choice: 1))
+        #expect(store.state.poll(of: poll.id)?.selectedChoiceIndex == 1)
+        #expect(store.state.poll(of: poll.id)?.choices[1].count == 1_023)
+        await store.receive(\.pollVoteFailed)
+        #expect(store.state.poll(of: poll.id)?.selectedChoiceIndex == nil)
+        #expect(store.state.poll(of: poll.id)?.choices[1].count == 1_022)
+    }
+
+    @Test
     func showMoreFailureKeepsRow() async {
         struct Failure: Error {}
         let cursor = ShowMoreCursor(id: "cursor-showmore-1", cursor: "more")
