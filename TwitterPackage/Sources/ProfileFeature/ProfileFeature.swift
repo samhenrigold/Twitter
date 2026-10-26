@@ -13,6 +13,8 @@ package struct ProfileFeature {
         var errorMessage: String?
         var feeds: FeedsFeature.State?
         var hasFetchedUser = false
+        /// The user is being fetched: a view appearing again meanwhile doesn't fetch it twice.
+        var isFetchingUser = false
         var isViewer = false
         /// The viewer asked to see the posts of someone they blocked.
         var isShowingBlockedPosts = false
@@ -161,7 +163,8 @@ package struct ProfileFeature {
                 return .send(.delegate(.signOut))
 
             case .task:
-                guard !state.hasFetchedUser else { return .none }
+                guard !state.hasFetchedUser, !state.isFetchingUser else { return .none }
+                state.isFetchingUser = true
                 let screenName = state.screenName
                 let readsCache = state.user == nil
                 return .run { send in
@@ -172,6 +175,7 @@ package struct ProfileFeature {
                 }
 
             case .userResponse(.success(let user)):
+                state.isFetchingUser = false
                 state.errorMessage = nil
                 state.hasFetchedUser = true
                 state.user = user
@@ -183,6 +187,7 @@ package struct ProfileFeature {
                 }
 
             case .userResponse(.failure(let error)):
+                state.isFetchingUser = false
                 if state.user == nil {
                     state.errorMessage = error.localizedDescription
                 }

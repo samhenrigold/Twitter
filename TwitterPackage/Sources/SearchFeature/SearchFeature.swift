@@ -16,6 +16,8 @@ package struct SearchFeature {
         var trends: [Trend] = []
         var trendsError: String?
         var hasLoadedTrends = false
+        /// Trends are on their way: a view appearing again meanwhile doesn't ask twice.
+        var isLoadingTrends = false
 
         package init() {}
 
@@ -90,7 +92,8 @@ package struct SearchFeature {
 
             case .task:
                 // Only Explore shows them; a search opened from elsewhere starts with its results.
-                guard !state.hasLoadedTrends, state.results == nil else { return .none }
+                guard !state.hasLoadedTrends, !state.isLoadingTrends, state.results == nil else { return .none }
+                state.isLoadingTrends = true
                 return .run { send in
                     await send(.trendsResponse(Result { try await client.trends() }))
                 }
@@ -101,12 +104,14 @@ package struct SearchFeature {
 
             case .trendsResponse(.success(let trends)):
                 state.hasLoadedTrends = true
+                state.isLoadingTrends = false
                 state.trends = trends
                 state.trendsError = nil
                 return .none
 
             case .trendsResponse(.failure(let error)):
                 state.hasLoadedTrends = true
+                state.isLoadingTrends = false
                 state.trendsError = error.localizedDescription
                 return .none
             }

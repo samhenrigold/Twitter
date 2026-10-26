@@ -51,15 +51,25 @@ struct SearchFeatureTests {
     @Test
     func exploreLoadsTrendsAndATrendSearchesItsQuery() async {
         let trend = Trend(name: "#WWDC", context: "Trending in Technology")
+        let clock = TestClock()
         let store = TestStore(initialState: SearchFeature.State()) {
             SearchFeature()
         } withDependencies: {
-            $0[TwitterClient.self].trends = { [trend] }
+            $0[TwitterClient.self].trends = {
+                try await clock.sleep(for: .seconds(1))
+                return [trend]
+            }
         }
 
+        await store.send(.task) {
+            $0.isLoadingTrends = true
+        }
+        // Again while they're on their way, as a view appearing again does: asked for once.
         await store.send(.task)
+        await clock.advance(by: .seconds(1))
         await store.receive(\.trendsResponse) {
             $0.hasLoadedTrends = true
+            $0.isLoadingTrends = false
             $0.trends = [trend]
         }
         await store.send(.trendTapped(trend)) {

@@ -22,7 +22,7 @@ package final class TabStackController: NSObject {
 
     package let navigationController: ColumnNavigationController
     private let store: StoreOf<TabStack>
-    private var columns: [StackElementID: UIViewController] = [:]
+    private var columns: [StackElementID: ColumnHostingController<TabStackPathView>] = [:]
     private var isAwaitingTransition = false
     private var observation: ObserveToken?
 
@@ -57,6 +57,12 @@ package final class TabStackController: NSObject {
 
     /// Makes the controller's stack match the path. Never in the middle of a transition: once it's done.
     private func sync() {
+        // Whatever's left the path stops at once, before (or while) it animates away: see `contentWasRemoved()`.
+        let ids = Set(store.path.ids)
+        for (id, column) in columns where !ids.contains(id) {
+            column.contentWasRemoved()
+            columns[id] = nil
+        }
         let controller = navigationController
         if let transition = controller.transitionCoordinator {
             guard !isAwaitingTransition else { return }
@@ -85,7 +91,7 @@ package final class TabStackController: NSObject {
         }
     }
 
-    private func column(for id: StackElementID) -> UIViewController? {
+    private func column(for id: StackElementID) -> ColumnHostingController<TabStackPathView>? {
         if let column = columns[id] { return column }
         guard let state = store.path[id: id],
             let columnStore = store.scope(state: \.path[id: id], action: \.path[id: id])

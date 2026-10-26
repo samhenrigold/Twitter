@@ -12,6 +12,10 @@ final class ColumnHostingController<Content: View>: UIHostingController<ColumnSc
     var onRemoved: (() -> Void)?
     /// Called on each layout pass, once the column has its traits.
     var onLayout: (() -> Void)?
+    /// Whether its content has been let go, its screen having left the path (see `contentWasRemoved()`).
+    var isContentRemoved: Bool { chrome.isContentRemoved }
+    /// Whether it's laid out as a column, drawing its own bar.
+    var isLaidOutAsColumn: Bool { chrome.showsColumnBar == true }
     private let chrome: ColumnChrome
     private let stack: StoreOf<TabStack>
 
@@ -26,6 +30,18 @@ final class ColumnHostingController<Content: View>: UIHostingController<ColumnSc
     @available(*, unavailable)
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+
+    /// The column's screen has left the path (closed from the store: the tab reselected, or replaced by what's opened
+    /// from an earlier column), but its view lives on while it animates away. Laid out as columns, it's moved between
+    /// the strip's cards on the way, and SwiftUI appears it again each time: its rows and `.task`s would keep sending
+    /// actions for a screen that's no longer there. So it's swapped for a still image of itself and its content let
+    /// go. On a plain stack UIKit's own transition leaves the view where it is, and its content stays for the bar's
+    /// title and buttons to animate out with.
+    func contentWasRemoved() {
+        guard chrome.showsColumnBar == true, !chrome.isContentRemoved else { return }
+        chrome.still = view.window == nil ? nil : view.snapshotView(afterScreenUpdates: false)
+        chrome.isContentRemoved = true
     }
 
     override func didMove(toParent parent: UIViewController?) {
@@ -136,6 +152,9 @@ final class ColumnChrome {
     var barPadding: CGFloat = 0
     var showsBarItems = true
     var isInVerticalBar = false
+    /// The column's screen has left the path: its content is gone, and a still image of it shows instead.
+    var isContentRemoved = false
+    var still: UIView?
 
     var placement: ColumnBarPlacement {
         isInVerticalBar ? .verticalBar : showsBarItems ? .ownBar : .hidden
@@ -153,6 +172,16 @@ struct ColumnScreen<Content: View>: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     var body: some View {
+        if chrome.isContentRemoved {
+            // Nothing live: the column as it last looked, as it goes.
+            ColumnStill(view: chrome.still)
+                .ignoresSafeArea()
+        } else {
+            column
+        }
+    }
+
+    private var column: some View {
         Group {
             // Columns draw their own bars (the navigation controller's shows only the top one, and is hidden). Before
             // the first layout says which, the size class is the best guess.
@@ -199,6 +228,17 @@ struct ColumnScreen<Content: View>: View {
                 }
             }
     }
+}
+
+/// A snapshot of a column's view, in place of its content once its screen has left the path.
+private struct ColumnStill: UIViewRepresentable {
+    let view: UIView?
+
+    func makeUIView(context: Context) -> UIView {
+        view ?? UIView()
+    }
+
+    func updateUIView(_ view: UIView, context: Context) {}
 }
 
 private struct AlreadyHereShake: ViewModifier {

@@ -10,18 +10,26 @@ struct ProfileFeatureTests {
     @Test
     func taskFetchesUserOnlyOnce() async {
         let fetches = LockIsolated(0)
+        let clock = TestClock()
         let store = TestStore(initialState: ProfileFeature.State(user: .mockFriend)) {
             ProfileFeature()
         } withDependencies: {
             $0[TwitterClient.self].user = { _ in
                 fetches.withValue { $0 += 1 }
+                try await clock.sleep(for: .seconds(1))
                 return .mockFriend
             }
         }
 
+        await store.send(.task) {
+            $0.isFetchingUser = true
+        }
+        // The view appearing again while it's on its way (a column moved between the strip's cards).
         await store.send(.task)
+        await clock.advance(by: .seconds(1))
         await store.receive(\.userResponse) {
             $0.hasFetchedUser = true
+            $0.isFetchingUser = false
         }
         await store.send(.task)
         #expect(fetches.value == 1)
