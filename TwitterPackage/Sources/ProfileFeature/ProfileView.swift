@@ -68,6 +68,13 @@ package struct ProfileMenuItems: View {
             }
         } else if let user = store.user {
             Button(
+                user.isMuting ? "Unmute @\(user.screenName)" : "Mute @\(user.screenName)",
+                twitterIcon: user.isMuting ? .unmute : .mute
+            ) {
+                store.send(.muteButtonTapped)
+            }
+
+            Button(
                 user.isBlocking ? "Unblock @\(user.screenName)" : "Block @\(user.screenName)",
                 twitterIcon: .block,
                 role: user.isBlocking ? nil : .destructive

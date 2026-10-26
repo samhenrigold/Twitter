@@ -27,6 +27,7 @@ package struct TwitterClient: Sendable {
     package var setBookmarked: @Sendable (_ isBookmarked: Bool, _ tweetID: String) async throws -> Void
     package var setFollowing: @Sendable (_ isFollowing: Bool, _ userID: String) async throws -> Void
     package var setLiked: @Sendable (_ isLiked: Bool, _ tweetID: String) async throws -> Void
+    package var setMuting: @Sendable (_ isMuting: Bool, _ userID: String) async throws -> Void
     package var setReposted: @Sendable (_ isReposted: Bool, _ tweetID: String) async throws -> Void
     package var signIn: @Sendable (_ cookies: [String: String]) async throws -> User
     package var signOut: @Sendable () async -> Void
@@ -47,6 +48,7 @@ extension TwitterClient: TestDependencyKey {
             setBookmarked: { _, _ in },
             setFollowing: { _, _ in },
             setLiked: { _, _ in },
+            setMuting: { _, _ in },
             setReposted: { _, _ in },
             signIn: { _ in .mock },
             signOut: {},

@@ -43,6 +43,8 @@ package struct ProfileFeature {
         case blockButtonTapped
         /// Carries the value to restore, so a failure that lands after another tap can't flip the wrong way.
         case blockFailed(isBlocking: Bool)
+        case muteButtonTapped
+        case muteFailed(isMuting: Bool)
         case cachedUserLoaded(User)
         case delegate(ContentDelegate)
         case feeds(FeedsFeature.Action)
@@ -77,6 +79,20 @@ package struct ProfileFeature {
 
             case .blockFailed(let isBlocking):
                 state.user?.isBlocking = isBlocking
+                return .none
+
+            case .muteButtonTapped:
+                guard var user = state.user else { return .none }
+                user.isMuting.toggle()
+                state.user = user
+                return .run { [user] _ in
+                    try await client.setMuting(user.isMuting, user.id)
+                } catch: { [user] _, send in
+                    await send(.muteFailed(isMuting: !user.isMuting))
+                }
+
+            case .muteFailed(let isMuting):
+                state.user?.isMuting = isMuting
                 return .none
 
             case .viewPostsButtonTapped:

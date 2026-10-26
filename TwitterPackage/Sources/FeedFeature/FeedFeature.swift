@@ -104,6 +104,8 @@ package struct FeedFeature {
         /// Who liked a post. Only the viewer's own posts list anyone, since Twitter made likes private.
         case likesButtonTapped(Tweet)
         case linkTapped(URL)
+        case muteButtonTapped(User)
+        case muteFailed(userID: String, isMuting: Bool)
         case newPostsButtonTapped
         case pageResponse(Result<FeedPage, any Error>, isRefresh: Bool)
         indirect case preview(PresentationAction<FeedFeature.Action>)
@@ -206,6 +208,19 @@ package struct FeedFeature {
                 } message: {
                     TextState(message)
                 }
+                return .none
+
+            case .muteButtonTapped(let user):
+                let isMuting = !user.isMuting
+                state.setMuting(isMuting, userID: user.id)
+                return .run { _ in
+                    try await client.setMuting(isMuting, user.id)
+                } catch: { _, send in
+                    await send(.muteFailed(userID: user.id, isMuting: !isMuting))
+                }
+
+            case .muteFailed(let userID, let isMuting):
+                state.setMuting(isMuting, userID: userID)
                 return .none
 
             case .blockFailed(let userID, let isBlocking):
@@ -505,6 +520,12 @@ extension FeedFeature.State {
     mutating func setBlocking(_ isBlocking: Bool, userID: String) {
         for id in items.ids {
             items[id: id]?.updateUser(id: userID) { $0.isBlocking = isBlocking }
+        }
+    }
+
+    mutating func setMuting(_ isMuting: Bool, userID: String) {
+        for id in items.ids {
+            items[id: id]?.updateUser(id: userID) { $0.isMuting = isMuting }
         }
     }
 }

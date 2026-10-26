@@ -36,6 +36,7 @@ package enum TwitterIcon: String, Sendable {
     case lock
     case mediaStroke = "media_stroke"
     case more
+    case mute
     case newWindow = "new_window"
     case notifications
     case notificationsStroke = "notifications_stroke"
@@ -56,6 +57,7 @@ package enum TwitterIcon: String, Sendable {
     /// The bird.
     case trash
     case twitter
+    case unmute
     /// The verified badge, for tinting in the account's color.
     case verified
     case videoOff = "video_off"

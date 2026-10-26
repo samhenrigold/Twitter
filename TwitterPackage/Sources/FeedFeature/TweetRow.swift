@@ -613,6 +613,15 @@ package struct TweetMenu: View {
                 Label("Delete Tweet", twitterIcon: .trash)
             }
         } else {
+            Button {
+                store.send(.muteButtonTapped(tweet.author))
+            } label: {
+                Label(
+                    tweet.author.isMuting
+                        ? "Unmute @\(tweet.author.screenName)" : "Mute @\(tweet.author.screenName)",
+                    twitterIcon: tweet.author.isMuting ? .unmute : .mute)
+            }
+
             Button(role: tweet.author.isBlocking ? nil : .destructive) {
                 store.send(.blockButtonTapped(tweet.author))
             } label: {
