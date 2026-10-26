@@ -22,7 +22,7 @@ package struct Avatar: View {
         }
         .frame(width: size, height: size)
         .clipShape(.circle)
-        .overlay { Circle().strokeBorder(.black.opacity(0.12), lineWidth: 0.5) }
+        .overlay { Circle().strokeBorder(.avatarHairline, lineWidth: 0.5) }
         .accessibilityHidden(true)
     }
 }
@@ -59,25 +59,32 @@ package struct AuthorLine: View {
             switch layout {
             case .inline:
                 HStack(spacing: metrics.authorLineSpacing) {
-                    nameAndBadges
+                    AuthorName(affiliate: affiliate, badge: badge, name: name)
                         .layoutPriority(1)
 
-                    handleAndTime
+                    AuthorHandle(date: date, screenName: screenName)
                 }
             case .stacked:
                 VStack(alignment: .leading, spacing: metrics.stackedAuthorSpacing) {
-                    nameAndBadges
+                    AuthorName(affiliate: affiliate, badge: badge, name: name)
 
-                    handleAndTime
+                    AuthorHandle(date: date, screenName: screenName)
                 }
             }
         }
         .font(metrics.font(.body))
         .foregroundStyle(.twitterSecondary)
     }
+}
 
-    /// `authorBadgePadding`: 2.5 pt either side of the badge.
-    private var nameAndBadges: some View {
+/// The name and its badges. `authorBadgePadding`: 2.5 pt either side of the badge.
+private struct AuthorName: View {
+    let affiliate: AffiliateLabel?
+    let badge: VerificationBadge?
+    let name: String
+    @Environment(\.tweetMetrics) private var metrics
+
+    var body: some View {
         HStack(spacing: 2.5) {
             Text(name)
                 .font(metrics.font(.body, weight: .bold))
@@ -94,8 +101,15 @@ package struct AuthorLine: View {
             }
         }
     }
+}
 
-    private var handleAndTime: some View {
+/// "@handle · 2h", the time kept current as the row stays on screen.
+private struct AuthorHandle: View {
+    let date: Date?
+    let screenName: String
+    @Environment(\.tweetMetrics) private var metrics
+
+    var body: some View {
         HStack(spacing: metrics.authorLineSpacing) {
             Text(verbatim: "@\(screenName)")
                 .lineLimit(1)
@@ -103,8 +117,10 @@ package struct AuthorLine: View {
             if let date {
                 Text(verbatim: "·")
 
-                Text(date.shortRelative)
-                    .fixedSize()
+                TimelineView(.periodic(from: .now, by: 60)) { context in
+                    Text(verbatim: date.shortRelative(to: context.date))
+                        .fixedSize()
+                }
             }
         }
     }
@@ -311,8 +327,11 @@ extension Int {
 }
 
 extension Date {
-    package var shortRelative: String {
-        let seconds = Date.now.timeIntervalSince(self)
+    package var shortRelative: String { shortRelative(to: .now) }
+
+    /// "2m", "3h", "4d", then the date, as of `now`.
+    package func shortRelative(to now: Date) -> String {
+        let seconds = now.timeIntervalSince(self)
         switch seconds {
         case ..<60: return "\(Swift.max(Int(seconds), 0))s"
         case ..<3_600: return "\(Int(seconds / 60))m"

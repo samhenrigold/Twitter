@@ -67,7 +67,7 @@ package enum TwitterIcon: String, Sendable {
     case warningStroke = "warning_stroke"
 
     package var image: Image {
-        Image(assetName, bundle: .module).renderingMode(.template)
+        Image(decorative: assetName, bundle: .module).renderingMode(.template)
     }
 
     /// For UIKit's bars.

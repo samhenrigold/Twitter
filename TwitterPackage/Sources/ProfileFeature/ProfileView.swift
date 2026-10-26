@@ -196,7 +196,8 @@ private struct ProfileHeader: View {
                         Text(user.name)
                             .font(
                                 TwitterFont.font(
-                                    size: user.name == user.screenName ? 17 : metrics.bodySize + 7, weight: .bold)
+                                    size: user.name == user.screenName
+                                        ? metrics.size(.headline2) : metrics.bodySize + 7, weight: .bold)
                             )
                             .foregroundStyle(.twitterPrimary)
 

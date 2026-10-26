@@ -267,8 +267,8 @@ private final class EntityInteractionView: UIView, UIContextMenuInteractionDeleg
         case .url(let url):
             if case .web = target.route {
                 primary.append(
-                    UIAction(title: String(localized: "Open in Safari"), image: TwitterIcon.globe.uiImage) { _ in
-                        UIApplication.shared.open(url)
+                    UIAction(title: String(localized: "Open in Safari"), image: TwitterIcon.globe.uiImage) {
+                        [weak self] _ in self?.window?.windowScene?.open(url, options: nil, completionHandler: nil)
                     })
             }
         }

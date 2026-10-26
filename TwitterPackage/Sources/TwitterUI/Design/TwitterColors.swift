@@ -18,6 +18,24 @@ extension Color {
     package static let twitterMediaBorder = Color(.twitterMediaBorder)
     /// The pale blue behind notifications that arrived since they were last read.
     package static let twitterUnread = Color(.twitterUnread)
+    /// Errors and the over-limit count.
+    package static let twitterError = Color(.twitterError)
+    /// Nearing the character limit.
+    package static let twitterWarning = Color(.twitterWarning)
+    /// Notification glyphs for stars, Spaces and live.
+    package static let twitterPurple = Color(.twitterPurple)
+    /// Notification glyphs for security.
+    package static let twitterOrange = Color(.twitterOrange)
+    /// Glyphs drawn over photos and video (play, GIF).
+    package static let mediaGlyph = Color(.mediaGlyph)
+    /// Behind media shown full screen.
+    package static let mediaBackdrop = Color(.mediaBackdrop)
+    /// Darkens media under controls.
+    package static let mediaScrim = Color(.mediaScrim)
+    /// The hairline around avatars.
+    package static let avatarHairline = Color(.avatarHairline)
+    /// Recessed backgrounds (a gap in a timeline).
+    package static let twitterGroove = Color(.twitterGroove)
 }
 
 extension ShapeStyle where Self == Color {
@@ -29,6 +47,15 @@ extension ShapeStyle where Self == Color {
     package static var twitterRepost: Color { Color.twitterRepost }
     package static var twitterMediaBorder: Color { Color.twitterMediaBorder }
     package static var twitterUnread: Color { Color.twitterUnread }
+    package static var twitterError: Color { Color.twitterError }
+    package static var twitterWarning: Color { Color.twitterWarning }
+    package static var twitterPurple: Color { Color.twitterPurple }
+    package static var twitterOrange: Color { Color.twitterOrange }
+    package static var mediaGlyph: Color { Color.mediaGlyph }
+    package static var mediaBackdrop: Color { Color.mediaBackdrop }
+    package static var mediaScrim: Color { Color.mediaScrim }
+    package static var avatarHairline: Color { Color.avatarHairline }
+    package static var twitterGroove: Color { Color.twitterGroove }
 }
 
 /// A full-bleed hairline in the divider colour, in place of the system `Divider`.

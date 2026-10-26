@@ -131,9 +131,9 @@ private struct MediaCell: View {
                 }
                 .overlay(alignment: .bottomTrailing) {
                     if cell.media.kind != .photo {
-                        Image(systemName: cell.media.kind == .gif ? "play.circle" : "play.fill")
+                        Glyph(cell.media.kind == .gif ? "play.circle" : TwitterIcon.play.rawValue, size: 12)
                             .font(.caption)
-                            .foregroundStyle(.white)
+                            .foregroundStyle(.mediaGlyph)
                             .padding(6)
                             .glassEffect(.regular, in: .circle)
                             .padding(6)

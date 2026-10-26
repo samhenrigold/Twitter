@@ -21,7 +21,7 @@ package struct RemoteImage<Placeholder: View>: View {
         url: URL?,
         pointSize: CGFloat,
         contentMode: ContentMode = .fill,
-        @ViewBuilder placeholder: () -> Placeholder
+        @ContentBuilder placeholder: () -> Placeholder
     ) {
         self.contentMode = contentMode
         self.placeholder = placeholder()

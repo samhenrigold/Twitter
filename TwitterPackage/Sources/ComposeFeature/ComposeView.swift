@@ -72,7 +72,7 @@ package struct ComposeView: View {
                     if let errorMessage = store.errorMessage {
                         Label(errorMessage, twitterIcon: .warningStroke)
                             .font(.footnote)
-                            .foregroundStyle(.red)
+                            .foregroundStyle(.twitterError)
                     }
                 }
                 .padding()
@@ -168,11 +168,11 @@ private struct CharacterCountGauge: View {
         Gauge(value: min(max(progress, 0), 1)) {
             Text("Characters")
         } currentValueLabel: {
-            Text("\(remaining)")
+            Text(remaining, format: .number)
                 .monospacedDigit()
         }
         .gaugeStyle(.accessoryCircularCapacity)
-        .tint(remaining < 0 ? .red : remaining < 20 ? .orange : .accentColor)
+        .tint(remaining < 0 ? .twitterError : remaining < 20 ? .twitterWarning : .accentColor)
         .scaleEffect(0.6)
         // A scale effect doesn't shrink layout; size the slot the toolbar reserves to what's drawn.
         .frame(width: 32, height: 32)
@@ -206,7 +206,12 @@ private struct AttachmentStrip: View {
 }
 
 private struct AttachmentThumbnail: View {
+    private static let height: CGFloat = 120
+
     let attachment: ComposeFeature.Attachment
+    /// Decoded once, at the size drawn, rather than from the full image on every keystroke.
+    @State private var thumbnail: UIImage?
+    @Environment(\.displayScale) private var displayScale
 
     var body: some View {
         Group {
@@ -220,15 +225,22 @@ private struct AttachmentThumbnail: View {
                             .frame(width: 28, height: 28)
                             .foregroundStyle(.secondary)
                     }
-            } else if let image = UIImage(data: attachment.upload.data) {
-                Image(uiImage: image)
+            } else if let thumbnail {
+                Image(uiImage: thumbnail)
                     .resizable()
                     .scaledToFill()
             }
         }
-        .frame(width: attachment.isVideo ? 160 : 120, height: 120)
+        .frame(width: attachment.isVideo ? 160 : Self.height, height: Self.height)
         .clipShape(.rect(cornerRadius: 12))
         .accessibilityLabel(attachment.isVideo ? "Video" : "Photo")
+        .task(id: attachment.id) {
+            guard !attachment.isVideo, let image = UIImage(data: attachment.upload.data) else { return }
+            // Filling the square, so the shorter side is the one that has to cover it.
+            let scale = min(Self.height * displayScale / min(image.size.width, image.size.height), 1)
+            let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+            thumbnail = await image.byPreparingThumbnail(ofSize: size) ?? image
+        }
     }
 }
 
@@ -385,9 +397,9 @@ private struct FollowUpEditor: View {
                     .lineLimit(2...)
 
                 HStack {
-                    Text("\(remainingCharacters)")
+                    Text(remainingCharacters, format: .number)
                         .font(.footnote.monospacedDigit())
-                        .foregroundStyle(remainingCharacters < 0 ? .red : .secondary)
+                        .foregroundStyle(remainingCharacters < 0 ? .twitterError : .secondary)
 
                     Button("Remove", twitterIcon: .close, action: remove)
                         .labelStyle(.iconOnly)

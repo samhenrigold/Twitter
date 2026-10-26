@@ -60,7 +60,7 @@ package struct GapGroove: View {
 
     package var body: some View {
         Rectangle()
-            .fill(Color(.secondarySystemBackground))
+            .fill(.twitterGroove)
             .overlay(alignment: .top) { Divider() }
             .overlay(alignment: .bottom) { Divider() }
     }
@@ -72,7 +72,8 @@ package struct EndOfTimeline: View {
 
     package var body: some View {
         Image(systemName: "fleuron.fill")
-            .font(.system(size: 34))
+            // 34 pt at the default text size, scaling with Dynamic Type.
+            .font(.largeTitle)
             .foregroundStyle(.quaternary)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 40)

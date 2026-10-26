@@ -14,11 +14,7 @@ package struct LikeButton: View {
     }
 
     package var body: some View {
-        Button {
-            withAnimation {
-                action()
-            }
-        } label: {
+        Button(action: action) {
             HStack(spacing: 4) {
                 ZStack {
                     if isLiked {
@@ -31,6 +27,7 @@ package struct LikeButton: View {
                             .transition(.identity)
                     }
                 }
+                .animation(.default, value: isLiked)
 
                 if count > 0 {
                     Text(count.compact)

@@ -11,7 +11,7 @@ package struct ColumnMenuToolbarItem<Items: View>: ToolbarContent {
 
     package init(
         _ title: LocalizedStringKey, twitterIcon icon: TwitterIcon = .more, placement: ColumnBarPlacement,
-        @ViewBuilder items: () -> Items
+        @ContentBuilder items: () -> Items
     ) {
         self.icon = icon
         self.placement = placement
@@ -61,9 +61,9 @@ package struct FollowButton: View {
 
 /// The actions under a post's details: spread evenly across the full width, between hairlines.
 package struct DetailActionBar<Content: View>: View {
-    @ViewBuilder let content: Content
+    let content: Content
 
-    package init(@ViewBuilder content: () -> Content) {
+    package init(@ContentBuilder content: () -> Content) {
         self.content = content()
     }
 

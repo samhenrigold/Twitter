@@ -24,7 +24,7 @@ struct SettingsView: View {
                                 Text(viewer.name)
                                     .font(.body.weight(.bold))
 
-                                Text("@\(viewer.screenName)")
+                                Text(verbatim: "@\(viewer.screenName)")
                                     .foregroundStyle(.secondary)
                             }
                         }

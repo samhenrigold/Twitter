@@ -12,15 +12,13 @@ package struct VerificationBadgeView: View {
     }
 
     package var body: some View {
-        Group {
-            // Twitter's badge, in the account's color, sized to the name it follows.
-            TwitterIcon.verified.image
-                .resizable()
-                .scaledToFit()
-                .frame(width: 16, height: 16)
-                .foregroundStyle(color)
-        }
-        .accessibilityLabel(label)
+        // Twitter's badge, in the account's color, sized to the name it follows.
+        TwitterIcon.verified.image
+            .resizable()
+            .scaledToFit()
+            .frame(width: 16, height: 16)
+            .foregroundStyle(color)
+            .accessibilityLabel(label)
     }
 
     private var color: AnyShapeStyle {
@@ -119,8 +117,14 @@ package struct CommunityNoteCard: View {
 
     package var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Label(note.shortTitle ?? "Readers added context", twitterIcon: .communities)
-                .font(.subheadline.weight(.semibold))
+            Group {
+                if let shortTitle = note.shortTitle {
+                    Label(shortTitle, twitterIcon: .communities)
+                } else {
+                    Label("Readers added context", twitterIcon: .communities)
+                }
+            }
+            .font(.subheadline.weight(.semibold))
 
             TweetText(links: note.links, text: note.text, font: .subheadline)
 

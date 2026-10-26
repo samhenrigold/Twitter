@@ -28,6 +28,7 @@ struct ThreadPreview: View {
                     TweetRow(
                         item: FeedTweet(tweet: tweet),
                         engagement: store.engagements.engagement(for: tweet),
+                        quotedEngagement: tweet.quoted.first.map { store.engagements.engagement(for: $0) },
                         store: store,
                         isFocused: true
                     )

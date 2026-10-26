@@ -9,9 +9,9 @@ import TwitterUI
 
 package struct FeedView<Header: View>: View {
     let store: StoreOf<FeedFeature>
-    @ViewBuilder let header: Header
+    let header: Header
 
-    package init(store: StoreOf<FeedFeature>, @ViewBuilder header: () -> Header) {
+    package init(store: StoreOf<FeedFeature>, @ContentBuilder header: () -> Header) {
         self.store = store
         self.header = header()
     }
@@ -57,17 +57,19 @@ package struct FeedView<Header: View>: View {
         // Just under the column's bar (the overlay keeps to the safe area the bar insets), pointing up at where the
         // new posts are.
         .overlay(alignment: .top) {
-            if store.newPostCount > 0 {
-                NewPostsButton(count: store.newPostCount) {
-                    // Like the status bar's scroll to top: straight there, no bounce.
-                    withAnimation(.smooth) { position.scrollTo(edge: .top) }
-                    store.send(.newPostsButtonTapped)
+            ZStack {
+                if store.newPostCount > 0 {
+                    NewPostsButton(count: store.newPostCount) {
+                        // Like the status bar's scroll to top: straight there, no bounce.
+                        withAnimation(.smooth) { position.scrollTo(edge: .top) }
+                        store.send(.newPostsButtonTapped)
+                    }
+                    .padding(.top, 8)
+                    .transition(.move(edge: .top).combined(with: .opacity))
                 }
-                .padding(.top, 8)
-                .transition(.move(edge: .top).combined(with: .opacity))
             }
+            .animation(.snappy, value: store.newPostCount > 0)
         }
-        .animation(.snappy, value: store.newPostCount > 0)
         .feedInteractions(store: store)
     }
 }
@@ -104,6 +106,7 @@ struct FeedRows: View {
             FeedItemRow(
                 item: item,
                 engagement: item.tweets.first.map { store.engagements.engagement(for: $0) },
+                quotedEngagement: item.tweets.dropFirst().first.map { store.engagements.engagement(for: $0) },
                 isFocused: item.id == store.focusedItemID,
                 store: store
             )
@@ -115,6 +118,8 @@ struct FeedRows: View {
 private struct FeedItemRow: View {
     let item: FeedItem
     let engagement: Engagement?
+    /// The quoted post's, for its own menu.
+    let quotedEngagement: Engagement?
     let isFocused: Bool
     let store: StoreOf<FeedFeature>
     @Environment(\.threadMeasurements) private var threadMeasurements
@@ -125,11 +130,12 @@ private struct FeedItemRow: View {
         VStack(spacing: 0) {
             switch item {
             case .notification(let notification):
-                NotificationRow(notification: notification, store: store)
+                NotificationRow(notification: notification, engagement: engagement, store: store)
             case .tweet(let feedTweet):
                 TweetRow(
                     item: feedTweet,
                     engagement: engagement ?? Engagement(tweet: feedTweet.tweet),
+                    quotedEngagement: quotedEngagement,
                     store: store,
                     isFocused: isFocused
                 )
@@ -277,9 +283,9 @@ struct FeedFooter: View {
 
 package struct FeedsView<Header: View>: View {
     @Bindable var store: StoreOf<FeedsFeature>
-    @ViewBuilder let header: Header
+    let header: Header
 
-    package init(store: StoreOf<FeedsFeature>, @ViewBuilder header: () -> Header) {
+    package init(store: StoreOf<FeedsFeature>, @ContentBuilder header: () -> Header) {
         self.store = store
         self.header = header()
     }

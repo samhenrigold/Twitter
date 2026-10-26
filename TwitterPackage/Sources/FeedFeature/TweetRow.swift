@@ -1,5 +1,6 @@
 import ComposableArchitecture
 import Models
+import PostText
 import Routing
 import SwiftUI
 import TweetEngagement
@@ -9,6 +10,8 @@ import TwitterUI
 package struct TweetRow: View {
     let item: FeedTweet
     let engagement: Engagement
+    /// The quoted post's, for its own menu.
+    var quotedEngagement: Engagement?
     let store: StoreOf<FeedFeature>
     var isFocused = false
     @Environment(\.tweetMetrics) private var metrics
@@ -25,15 +28,26 @@ package struct TweetRow: View {
     package var body: some View {
         VStack(alignment: .leading, spacing: 4 * metrics.unit) {
             if let reposter = item.repostedBy {
-                ContextLabel(symbol: TwitterIcon.repostStroke.rawValue, text: "\(reposter.name) retweeted")
+                ContextLabel(symbol: TwitterIcon.repostStroke.rawValue, text: Text("\(reposter.name) retweeted"))
             } else if let context = item.socialContext {
-                ContextLabel(symbol: item.socialSymbol ?? "sparkles", text: context)
+                ContextLabel(symbol: item.socialSymbol ?? "sparkles", text: Text(verbatim: context))
             }
 
             if layout == .stacked {
-                stackedLayout
+                StackedTweetLayout(
+                    item: item,
+                    engagement: engagement,
+                    quotedEngagement: quotedEngagement,
+                    isFocused: isFocused,
+                    store: store
+                )
             } else {
-                classicLayout
+                ClassicTweetLayout(
+                    item: item,
+                    engagement: engagement,
+                    quotedEngagement: quotedEngagement,
+                    store: store
+                )
             }
         }
         .padding(.horizontal, metrics.sideInset)
@@ -42,13 +56,15 @@ package struct TweetRow: View {
         .padding(.bottom, item.connectsBelow || isFocused ? 0 : metrics.actionBarBottomInset)
         .foregroundStyle(.twitterPrimary)
         .overlay(alignment: .topTrailing) {
-            if engagement.like.isOn || engagement.repost.isOn {
-                DogEar(isLiked: engagement.like.isOn, isReposted: engagement.repost.isOn)
-                    .transition(.scale(scale: 0, anchor: .topTrailing))
+            ZStack(alignment: .topTrailing) {
+                if engagement.like.isOn || engagement.repost.isOn {
+                    DogEar(isLiked: engagement.like.isOn, isReposted: engagement.repost.isOn)
+                        .transition(.scale(scale: 0, anchor: .topTrailing))
+                }
             }
+            .animation(.spring(duration: 0.3, bounce: 0.35), value: engagement.like.isOn)
+            .animation(.spring(duration: 0.3, bounce: 0.35), value: engagement.repost.isOn)
         }
-        .animation(.spring(duration: 0.3, bounce: 0.35), value: engagement.like.isOn)
-        .animation(.spring(duration: 0.3, bounce: 0.35), value: engagement.repost.isOn)
         // Opaque, so the post lifted for its context menu isn't see-through. Twitter's pale blue while unread.
         .background(item.isUnread ? AnyShapeStyle(.twitterUnread) : AnyShapeStyle(.background))
         .contentShape(.rect)
@@ -62,13 +78,23 @@ package struct TweetRow: View {
         .accessibilityAddTraits(.isButton)
         .accessibilityAction(named: "Open Tweet") { store.send(.tweetTapped(tweet)) }
     }
+}
 
-    /// Twitter's timeline row: the avatar (and the thread line under it) in a column of its own, the author line and
-    /// the post beside it.
-    private var classicLayout: some View {
+/// Twitter's timeline row: the avatar (and the thread line under it) in a column of its own, the author line and
+/// the post beside it.
+private struct ClassicTweetLayout: View {
+    let item: FeedTweet
+    let engagement: Engagement
+    let quotedEngagement: Engagement?
+    let store: StoreOf<FeedFeature>
+    @Environment(\.tweetMetrics) private var metrics
+
+    private var tweet: Tweet { item.tweet }
+
+    var body: some View {
         HStack(alignment: .top, spacing: metrics.gutter) {
             VStack(spacing: 0) {
-                avatarButton
+                AvatarButton(author: tweet.author, store: store)
 
                 if item.connectsBelow {
                     ThreadConnector()
@@ -79,59 +105,101 @@ package struct TweetRow: View {
                 VStack(alignment: .leading, spacing: 2 * metrics.unit) {
                     AuthorLine(user: tweet.author, date: tweet.createdAt)
 
-                    if showsReplyingTo {
+                    if item.showsReplyingTo {
                         ReplyingToLine(screenNames: tweet.replyingTo)
                     }
                 }
 
-                postContent
-                    .padding(.top, tweet.text.isEmpty ? metrics.mediaTextMargin : metrics.authorBodyMargin)
+                PostContent(
+                    item: item,
+                    engagement: engagement,
+                    quotedEngagement: quotedEngagement,
+                    isFocused: false,
+                    store: store
+                )
+                .padding(.top, tweet.text.isEmpty ? metrics.mediaTextMargin : metrics.authorBodyMargin)
             }
         }
     }
+}
 
-    /// The avatar beside the name over the handle, and the post under both at the row's full width.
-    private var stackedLayout: some View {
+/// The avatar beside the name over the handle, and the post under both at the row's full width.
+private struct StackedTweetLayout: View {
+    let item: FeedTweet
+    let engagement: Engagement
+    let quotedEngagement: Engagement?
+    let isFocused: Bool
+    let store: StoreOf<FeedFeature>
+    @Environment(\.tweetMetrics) private var metrics
+
+    private var tweet: Tweet { item.tweet }
+
+    var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: metrics.gutter) {
-                avatarButton
+                AvatarButton(author: tweet.author, store: store)
 
                 // The focused post's time is spelled out above its action bar instead.
                 AuthorLine(user: tweet.author, date: isFocused ? nil : tweet.createdAt, layout: .stacked)
             }
 
-            if showsReplyingTo {
+            if item.showsReplyingTo {
                 ReplyingToLine(screenNames: tweet.replyingTo)
                     .padding(.top, metrics.stackedBodyMargin)
             }
 
-            postContent
-                .padding(.top, showsReplyingTo ? metrics.authorBodyMargin : metrics.stackedBodyMargin)
+            PostContent(
+                item: item,
+                engagement: engagement,
+                quotedEngagement: quotedEngagement,
+                isFocused: isFocused,
+                store: store
+            )
+            .padding(.top, item.showsReplyingTo ? metrics.authorBodyMargin : metrics.stackedBodyMargin)
         }
     }
+}
 
-    private var avatarButton: some View {
+private struct AvatarButton: View {
+    let author: User
+    let store: StoreOf<FeedFeature>
+    @Environment(\.tweetMetrics) private var metrics
+
+    var body: some View {
         Button {
-            store.send(.authorTapped(tweet.author))
+            store.send(.authorTapped(author))
         } label: {
             Avatar(
-                user: tweet.author,
+                user: author,
                 size: metrics.avatarSize,
                 decodeSize: max(metrics.avatarSize, FeedImages.avatarSize)
             )
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("@\(tweet.author.screenName)")
-        .profilePreview(for: tweet.author) { store.send(.authorTapped(tweet.author)) }
+        .accessibilityLabel(Text(verbatim: "@\(author.screenName)"))
+        .profilePreview(for: author) { store.send(.authorTapped(author)) }
     }
+}
 
+extension FeedTweet {
     /// Within a thread the line above already says who's being replied to.
-    private var showsReplyingTo: Bool {
-        !tweet.replyingTo.isEmpty && !item.connectsAbove
+    fileprivate var showsReplyingTo: Bool {
+        !tweet.replyingTo.isEmpty && !connectsAbove
     }
+}
 
-    /// Text, attachments and the action bar: the same in either layout, only placed differently.
-    private var postContent: some View {
+/// Text, attachments and the action bar: the same in either layout, only placed differently.
+private struct PostContent: View {
+    let item: FeedTweet
+    let engagement: Engagement
+    let quotedEngagement: Engagement?
+    let isFocused: Bool
+    let store: StoreOf<FeedFeature>
+    @Environment(\.tweetMetrics) private var metrics
+
+    private var tweet: Tweet { item.tweet }
+
+    var body: some View {
         VStack(alignment: .leading, spacing: metrics.mediaTextMargin) {
             if !tweet.text.isEmpty {
                 ExpandableTweetText(tweet: tweet, isFocused: isFocused)
@@ -153,7 +221,8 @@ package struct TweetRow: View {
                 QuoteCard(tweet: quoted) { store.send(.tweetTapped(quoted)) }
                     // Its own menu, so pressing the quoted post lifts that post rather than the one quoting it.
                     .contextMenu {
-                        TweetMenu(tweet: quoted, engagement: store.engagements.engagement(for: quoted), store: store)
+                        TweetMenu(
+                            tweet: quoted, engagement: quotedEngagement ?? Engagement(tweet: quoted), store: store)
                     } preview: {
                         ThreadPreview(tweet: quoted, store: store)
                     }
@@ -214,7 +283,7 @@ private struct ExpandableTweetText: View {
     var body: some View {
         let isTruncated =
             !isFocused && !isExpanded
-            && TweetText.truncated(tweet.text, limit: TweetText.timelineCharacterLimit) != nil
+            && PostTextInput.needsTruncation(tweet.text, limit: TweetText.timelineCharacterLimit)
         VStack(alignment: .leading, spacing: 4 * metrics.unit) {
             TweetText(
                 tweet: tweet,
@@ -381,7 +450,8 @@ private struct FocusedTimestampLine: View {
 
 private struct ContextLabel: View {
     let symbol: String
-    let text: String
+    /// Localized when it's ours ("… retweeted"), verbatim when Twitter wrote it.
+    let text: Text
     @Environment(\.tweetMetrics) private var metrics
 
     var body: some View {
@@ -389,7 +459,7 @@ private struct ContextLabel: View {
             Glyph(symbol, size: 16)
                 .frame(width: metrics.avatarSize, alignment: .trailing)
 
-            Text(text).lineLimit(1)
+            text.lineLimit(1)
         }
         .font(metrics.font(.subtext2, weight: .bold))
         .foregroundStyle(.twitterSecondary)
@@ -678,6 +748,8 @@ package struct TweetMenu: View {
 
 package struct NotificationRow: View {
     let notification: TwitterNotification
+    /// The notification's post's, for its menu.
+    let engagement: Engagement?
     let store: StoreOf<FeedFeature>
 
     package var body: some View {
@@ -716,14 +788,20 @@ package struct NotificationRow: View {
         // Opaque, so the row lifted for its context menu isn't see-through. Twitter's pale blue while unread.
         .background(notification.isUnread ? AnyShapeStyle(.twitterUnread) : AnyShapeStyle(.background))
         .contentShape(.rect)
-        .onTapGesture {
-            if let tweet = notification.tweet {
-                store.send(.tweetTapped(tweet))
-            } else if let user = notification.users.first {
-                store.send(.authorTapped(user))
-            }
+        .onTapGesture(perform: open)
+        .modifier(NotificationMenu(notification: notification, engagement: engagement, store: store))
+        .accessibilityElement(children: .contain)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction(named: "Open", open)
+    }
+
+    /// The post it's about, or else the first of the people.
+    private func open() {
+        if let tweet = notification.tweet {
+            store.send(.tweetTapped(tweet))
+        } else if let user = notification.users.first {
+            store.send(.authorTapped(user))
         }
-        .modifier(NotificationMenu(notification: notification, store: store))
     }
 }
 
@@ -732,12 +810,13 @@ package struct NotificationRow: View {
 /// own profile preview.
 private struct NotificationMenu: ViewModifier {
     let notification: TwitterNotification
+    let engagement: Engagement?
     let store: StoreOf<FeedFeature>
 
     func body(content: Content) -> some View {
         if let tweet = notification.tweet {
             content.contextMenu {
-                TweetMenu(tweet: tweet, engagement: store.engagements.engagement(for: tweet), store: store)
+                TweetMenu(tweet: tweet, engagement: engagement ?? Engagement(tweet: tweet), store: store)
             } preview: {
                 ThreadPreview(tweet: tweet, store: store)
             }
@@ -795,11 +874,11 @@ private struct NotificationIconStyle {
         case let icon where icon.contains("bell"):
             (symbol, color) = (TwitterIcon.notifications.rawValue, .accentColor)
         case let icon where icon.contains("star") || icon.contains("bird"):
-            (symbol, color) = ("star.fill", .purple)
+            (symbol, color) = ("star.fill", .twitterPurple)
         case let icon where icon.contains("security") || icon.contains("safety"):
-            (symbol, color) = ("lock.shield.fill", .orange)
+            (symbol, color) = (TwitterIcon.lock.rawValue, .twitterOrange)
         case let icon where icon.contains("live") || icon.contains("space"):
-            (symbol, color) = ("waveform", .purple)
+            (symbol, color) = ("waveform", .twitterPurple)
         case let icon where icon.contains("milestone") || icon.contains("trending"):
             (symbol, color) = ("chart.line.uptrend.xyaxis", .accentColor)
         default:

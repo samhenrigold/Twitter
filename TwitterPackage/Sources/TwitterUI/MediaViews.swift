@@ -104,11 +104,17 @@ private struct MediaTile: View {
                 }
                 .overlay {
                     if item.kind != .photo {
-                        Image(systemName: item.kind == .gif ? "play.circle" : "play.fill")
-                            .font(.title)
-                            .foregroundStyle(.white)
-                            .padding(14)
-                            .glassEffect(.regular, in: .circle)
+                        Group {
+                            if item.kind == .gif {
+                                Image(systemName: "play.circle")
+                                    .font(.title)
+                            } else {
+                                TwitterIconView(.play, size: 28)
+                            }
+                        }
+                        .foregroundStyle(.mediaGlyph)
+                        .padding(14)
+                        .glassEffect(.regular, in: .circle)
                     }
                 }
                 .clipped()
@@ -182,7 +188,7 @@ package struct MediaViewer: View {
                 .overlayArrangementEdge(.bottom)
             }
             .arrangementViewStyle(.overlay)
-            .background(.black, ignoresSafeAreaEdges: .all)
+            .background(.mediaBackdrop, ignoresSafeAreaEdges: .all)
             .toolbarVisibility(showsChrome ? .automatic : .hidden, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -208,7 +214,7 @@ package struct MediaViewer: View {
             }
         )
         .colorScheme(.dark)
-        .statusBarHidden(!showsChrome)
+        .toolbarVisibility(showsChrome ? .automatic : .hidden, for: .statusBar)
         .persistentSystemOverlays(showsChrome ? .automatic : .hidden)
         // A zoomed photo pans instead of starting the swipe-down dismissal.
         .interactiveDismissDisabled(isZoomed)
@@ -328,7 +334,7 @@ private struct MediaCaption: View {
         .background {
             if isLayered {
                 Rectangle()
-                    .fill(.black.opacity(0.55).gradient)
+                    .fill(Color.mediaScrim.gradient)
                     .ignoresSafeArea()
             }
         }

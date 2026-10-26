@@ -123,5 +123,12 @@ private struct SignInWebView: UIViewRepresentable {
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: any Error) {
             pageLoadingChanged(false)
         }
+
+        func webView(
+            _ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: any Error
+        ) {
+            // The page never started (offline, say): the spinner stops.
+            pageLoadingChanged(false)
+        }
     }
 }

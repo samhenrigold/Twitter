@@ -93,10 +93,10 @@ package final class TabStackController: NSObject {
             isAwaitingTransition = true
             transition.animate(alongsideTransition: nil) { [weak self] _ in
                 // After UIKit has let go of whatever the transition removed.
-                DispatchQueue.main.async {
+                Task { @MainActor [weak self] in
                     guard let self else { return }
-                    self.isAwaitingTransition = false
-                    self.sync()
+                    isAwaitingTransition = false
+                    sync()
                 }
             }
             return
@@ -166,7 +166,7 @@ private final class ColumnHostingController<Content: View>: UIHostingController<
     private let chrome: ColumnChrome
     private let stack: StoreOf<TabStack>
 
-    init(stack: StoreOf<TabStack>, id: StackElementID?, width: CGFloat, @ViewBuilder content: () -> Content) {
+    init(stack: StoreOf<TabStack>, id: StackElementID?, width: CGFloat, @ContentBuilder content: () -> Content) {
         let chrome = ColumnChrome()
         self.chrome = chrome
         self.stack = stack
@@ -206,7 +206,9 @@ private final class ColumnHostingController<Content: View>: UIHostingController<
         if showsColumnBar, let window = view.window {
             let inherited = view.safeAreaInsets.top - additionalSafeAreaInsets.top
             let overlap = max(0, window.safeAreaInsets.top - view.convert(view.bounds.origin, to: window).y)
-            padding = window.bounds.height > window.bounds.width ? Self.portraitBarPadding : 0
+            // Portrait by the shape of the space the columns get (the navigation controller's), not the window's.
+            let space = navigationController?.view.bounds.size ?? window.bounds.size
+            padding = space.height > space.width ? Self.portraitBarPadding : 0
             additional.top = overlap + padding - inherited
         }
         if additionalSafeAreaInsets != additional { additionalSafeAreaInsets = additional }

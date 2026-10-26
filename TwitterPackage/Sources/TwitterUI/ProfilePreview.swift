@@ -67,8 +67,21 @@ package struct ProfilePreviewCard: View {
         self.screenName = screenName
     }
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.legibilityWeight) private var legibilityWeight
+
+    /// A timeline's type at 15 pt, following Dynamic Type and Bold Text: a context menu preview is hosted on its own,
+    /// outside any column's ``SwiftUI/View/tweetMetrics()``.
+    private var metrics: TweetMetrics {
+        TweetMetrics(
+            bodySize: TweetMetrics.standard.bodySize + TweetMetrics.offset(for: dynamicTypeSize),
+            isBoldText: legibilityWeight == .bold
+        )
+    }
+
     package var body: some View {
         let avatarSize = ProfilePreviewCard.avatarSize
+        let metrics = metrics
         VStack(alignment: .leading, spacing: 0) {
             RemoteImage(url: user?.bannerURL, pointSize: ProfilePreviewCard.width) {
                 Rectangle().fill(.twitterDivider)
@@ -78,7 +91,7 @@ package struct ProfilePreviewCard: View {
 
             VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .bottom) {
-                    avatar
+                    ProfilePreviewAvatar(user: user, size: avatarSize)
                         .padding(3)
                         .background(.background, in: .circle)
 
@@ -86,7 +99,7 @@ package struct ProfilePreviewCard: View {
 
                     if user?.followsViewer == true {
                         Text("Follows you")
-                            .font(TweetMetrics.standard.font(.subtext3))
+                            .font(metrics.font(.subtext3))
                             .foregroundStyle(.twitterSecondary)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
@@ -96,15 +109,15 @@ package struct ProfilePreviewCard: View {
                 }
                 .padding(.top, -(avatarSize / 2 + 3))
 
-                identity
+                ProfilePreviewIdentity(user: user, screenName: screenName)
 
                 if let bio = user?.bio, !bio.isEmpty {
-                    TweetText(links: [:], text: bio, font: TweetMetrics.standard.font(.subtext1))
+                    TweetText(links: [:], text: bio, font: metrics.font(.subtext1))
                         .lineLimit(3)
                         .environment(\.postTextPreviewsEnabled, false)
                 }
 
-                counts
+                ProfilePreviewCounts(user: user)
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 16)
@@ -113,22 +126,35 @@ package struct ProfilePreviewCard: View {
         .background(.background)
         .redacted(reason: user == nil ? .placeholder : [])
         .accessibilityElement(children: .combine)
+        .environment(\.tweetMetrics, metrics)
     }
+}
 
-    @ViewBuilder private var avatar: some View {
+/// The avatar, or the placeholder while the profile loads.
+private struct ProfilePreviewAvatar: View {
+    let user: User?
+    let size: CGFloat
+
+    var body: some View {
         if let user {
-            Avatar(user: user, size: ProfilePreviewCard.avatarSize)
+            Avatar(user: user, size: size)
         } else {
             Image("AvatarPlaceholder", bundle: .module)
                 .resizable()
-                .frame(width: ProfilePreviewCard.avatarSize, height: ProfilePreviewCard.avatarSize)
+                .frame(width: size, height: size)
                 .clipShape(.circle)
         }
     }
+}
 
-    private var identity: some View {
-        let metrics = TweetMetrics.standard
-        return VStack(alignment: .leading, spacing: 1) {
+/// Name and badges over the handle.
+private struct ProfilePreviewIdentity: View {
+    let user: User?
+    let screenName: String
+    @Environment(\.tweetMetrics) private var metrics
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 1) {
             HStack(spacing: 3) {
                 Text(user?.name ?? screenName)
                     .font(metrics.font(.headline2, weight: .bold))
@@ -160,12 +186,17 @@ package struct ProfilePreviewCard: View {
                 .lineLimit(1)
         }
     }
+}
 
-    private var counts: some View {
-        let metrics = TweetMetrics.standard
+/// Following and follower counts.
+private struct ProfilePreviewCounts: View {
+    let user: User?
+    @Environment(\.tweetMetrics) private var metrics
+
+    var body: some View {
         let following = user?.followingCount ?? 0
         let followers = user?.followersCount ?? 0
-        return HStack(spacing: 16) {
+        HStack(spacing: 16) {
             Text(
                 "\(Text(following.compact).font(metrics.font(.subtext1, weight: .bold)).foregroundStyle(.twitterPrimary)) Following"
             )

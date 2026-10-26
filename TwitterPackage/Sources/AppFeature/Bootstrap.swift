@@ -8,7 +8,7 @@ import TwitterUI
 public func bootstrapTwitter() {
     // Registering the Chirp faces is file I/O that nothing needs until the first text is laid out, so it overlaps
     // opening the database. The first font lookup waits for it if it's still going.
-    DispatchQueue.global(qos: .userInteractive).async { TwitterFont.register() }
+    Task.detached(priority: .high) { TwitterFont.register() }
     prepareDependencies { dependencies in
         withErrorReporting {
             try dependencies.bootstrapDatabase()

@@ -55,7 +55,7 @@ private struct ListRow: View {
                 .scaledToFit()
                 .frame(width: 22, height: 22)
                 .padding(11)
-                .foregroundStyle(.white)
+                .foregroundStyle(.mediaGlyph)
                 .background(Color.twitterBlue, in: .rect(cornerRadius: 10))
 
             VStack(alignment: .leading, spacing: 3) {
@@ -78,7 +78,7 @@ private struct ListRow: View {
                         .lineLimit(2)
                 }
 
-                Text("\(list.memberCount.formatted()) members")
+                Text("\(list.memberCount) members")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }

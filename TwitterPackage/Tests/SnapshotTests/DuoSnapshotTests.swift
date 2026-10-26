@@ -73,9 +73,9 @@ struct DuoSnapshotTests {
         line: UInt = #line,
         column: UInt = #column
     ) async {
-        // Hostless tests have no scene for `init(windowScene:)`.
-        let window = UIWindow()
-        window.frame = CGRect(origin: .zero, size: pose.size)
+        // Hostless tests have no scene for `init(windowScene:)`, so the window is made through UIView's initializer.
+        let windowType: UIView.Type = UIWindow.self
+        let window = windowType.init(frame: CGRect(origin: .zero, size: pose.size)) as! UIWindow
         window.overrideUserInterfaceStyle = appearance == .dark ? .dark : .light
         window.rootViewController = UIHostingController(rootView: view)
         window.isHidden = false

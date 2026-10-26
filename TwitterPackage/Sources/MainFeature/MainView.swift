@@ -40,15 +40,6 @@ package struct MainView: View {
             .task { await store.send(.task).finish() }
     }
 
-    private func tabStack(_ tab: MainFeature.Tab) -> StoreOf<TabStack> {
-        switch tab {
-        case .bookmarks: store.scope(state: \.bookmarks, action: \.bookmarks)
-        case .explore: store.scope(state: \.explore, action: \.explore)
-        case .home: store.scope(state: \.home, action: \.home)
-        case .notifications: store.scope(state: \.notifications, action: \.notifications)
-        case .profile: store.scope(state: \.profile, action: \.profile)
-        }
-    }
 }
 
 /// The tabs, in UIKit's tab bar controller (iPhone Duo puts its bar in the vertical bar). Each tab is its stack's
@@ -192,7 +183,15 @@ extension MainFeature.Tab {
         }
     }
 
-    fileprivate var titleKey: LocalizedStringKey { LocalizedStringKey(title) }
+    fileprivate var titleKey: LocalizedStringKey {
+        switch self {
+        case .bookmarks: "Bookmarks"
+        case .explore: "Explore"
+        case .home: "Home"
+        case .notifications: "Notifications"
+        case .profile: "Profile"
+        }
+    }
 
     /// Twitter's glyph: outlined, and filled while selected.
     fileprivate func icon(isSelected: Bool) -> UIImage? {
