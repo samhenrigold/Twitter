@@ -10,12 +10,17 @@
 //   tap (Tweetie's _didReset → swipeView:shouldRevealItem:) or not (a vertical scroll, a cancel).
 // - Release velocity is measured over the last few moves (not just the last one), and is zero if the
 //   finger came to rest before lifting.
+// - It's a UIPanGestureRecognizer by class only (none of its own tracking runs: these overrides don't call super), so
+//   content yields to it the way it does to a scroll view's pan. SwiftUI lets a pan cancel a Button (or tap) the touch
+//   began on, where any other recognizer is excluded by the button's, which begins on touch down; UISlider (SwiftUI's
+//   Slider too) refuses a pan along its track that starts on its thumb, or once it's tracking. `location(in:)` and
+//   `translation(in:)` answer from this recognizer's own tracking, for them.
 //
 
 import UIKit
 import UIKit.UIGestureRecognizerSubclass
 
-final class ColumnSwipeGestureRecognizer: UIGestureRecognizer {
+final class ColumnSwipeGestureRecognizer: UIPanGestureRecognizer {
     /// Touch down (swipeView:willBeginTouches:withEvent:): Tweetie stops a moving stack here.
     var onTouchDown: ((CGPoint) -> Void)?
     /// Asked at touch down (after `onTouchDown`): begin right away, claiming the touch from content.
@@ -50,6 +55,17 @@ final class ColumnSwipeGestureRecognizer: UIGestureRecognizer {
             last.time > first.time
         else { return 0 }
         return (last.x - first.x) / CGFloat(last.time - first.time) / 60
+    }
+
+    override func location(in view: UIView?) -> CGPoint {
+        self.view?.convert(location, to: view) ?? location
+    }
+
+    override func translation(in view: UIView?) -> CGPoint {
+        guard let own = self.view else { return .zero }
+        let start = own.convert(firstLocation, to: view)
+        let end = own.convert(location, to: view)
+        return CGPoint(x: end.x - start.x, y: end.y - start.y)
     }
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) {
