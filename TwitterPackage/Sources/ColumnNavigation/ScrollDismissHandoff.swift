@@ -49,7 +49,7 @@ final class ScrollDismissHandoff: NSObject {
     private var topY: CGFloat { -(scrollView?.adjustedContentInset.top ?? 0) }
 
     @objc private func handlePan(_ pan: UIPanGestureRecognizer) {
-        guard let scrollView, scrollView.refreshControl == nil else { return }
+        guard let scrollView else { return }
         // Window coordinates: the scroll view itself moves with the column once it's carrying it.
         let translation = pan.translation(in: nil).y
         switch pan.state {

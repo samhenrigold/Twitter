@@ -14,4 +14,11 @@ package protocol ColumnBarItemProviding: UIViewController {
     func performColumnBarAction(_ identifier: String)
     /// Whether the column's own bar shows its buttons (false while they're in the vertical bar).
     func setColumnBarItemsShown(_ shown: Bool)
+    /// Whether the column puts its buttons in the vertical bar itself (with ``ColumnSettings/columnsPlaceVerticalBarItems``):
+    /// only the focused column does.
+    func setColumnBarItemsInVerticalBar(_ inVerticalBar: Bool)
+}
+
+extension ColumnBarItemProviding {
+    package func setColumnBarItemsInVerticalBar(_ inVerticalBar: Bool) {}
 }

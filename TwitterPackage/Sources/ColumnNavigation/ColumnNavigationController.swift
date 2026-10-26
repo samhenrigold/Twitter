@@ -74,6 +74,8 @@ package final class ColumnNavigationController: UINavigationController, UINaviga
     private var needsFoldSettle = false
     /// Column mode has set things up (cards, a hidden bar) that compact needs torn down.
     private var hasColumnState = false
+    /// Between viewWillAppear and viewDidAppear.
+    private var isAppearing = false
     private var lastLayoutSize: CGSize = .zero
     /// UIKit's container for the top column, made to pass touches through to the columns under it.
     private weak var navigationTransitionView: UIView?
@@ -256,8 +258,11 @@ package final class ColumnNavigationController: UINavigationController, UINaviga
     package override func viewDidLoad() {
         super.viewDidLoad()
         view.insertSubview(columnHost, at: 0)
-        // Columns sit on a dark hatched void (tiled).
-        let void = UIImage(named: "hash-background", in: .module, with: nil).map(UIColor.init(patternImage:)) ?? .black
+        // Columns sit on a hatched void (tiled), in the light or dark hatch for the current appearance.
+        let void = UIColor { traits in
+            UIImage(named: "hash-background", in: .module, compatibleWith: traits).map(UIColor.init(patternImage:))
+                ?? .black
+        }
         view.backgroundColor = void
         columnHost.backgroundColor = void
         browseBackdrop.backgroundColor = .black
@@ -323,13 +328,38 @@ package final class ColumnNavigationController: UINavigationController, UINaviga
             self.focusedColumn = max(self.viewControllers.count - 1, 0)
             self.view.setNeedsLayout()
         }
+        // Folding and unfolding can move the vertical bar (or take it away) a beat after the size class changes, with
+        // no layout pass of ours to follow: the focused column's buttons go to it, or back to the column, right away.
+        registerForTraitChanges(UITraitCollection.systemTraitsAffectingVerticalBarEdge) { (self: Self, _) in
+            guard !self.isRunningColumnTransition else { return }
+            self.updateVerticalBarItems()
+            self.view.setNeedsLayout()
+        }
         NotificationCenter.default.addObserver(
             self, selector: #selector(settingsDidChange), name: ColumnSettings.didChange, object: nil)
         settingsDidChange()
     }
 
+    package override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        isAppearing = true
+    }
+
+    package override func viewIsAppearing(_ animated: Bool) {
+        super.viewIsAppearing(animated)
+        // Coming on screen (a tab switch) happens inside the tab bar controller's animation: laid out for the first
+        // time there, the columns (and the top one's UIKit wrapper) would grow out of the corner. Settle everything
+        // where it belongs first, so the animation has nothing to move.
+        UIView.performWithoutAnimation {
+            view.setNeedsLayout()
+            view.layoutIfNeeded()
+            for viewController in viewControllers { viewController.viewIfLoaded?.layoutIfNeeded() }
+        }
+    }
+
     package override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
+        isAppearing = false
         applyColumnLayout()
     }
 
@@ -356,9 +386,10 @@ package final class ColumnNavigationController: UINavigationController, UINaviga
             reanchorStrip()
         }
         if !isRunningColumnTransition, !isStripMoving, dragMode == nil {
-            if driver.isAnimating || isBrowsing {
+            if driver.isAnimating || isBrowsing || isAppearing {
                 // The springs own the motion: a layout pass inside someone else's animation (the tab bar showing,
-                // say) mustn't turn their per-frame placements into a competing Core Animation animation.
+                // say) mustn't turn their per-frame placements into a competing Core Animation animation. Nor
+                // should coming on screen (a tab switch) animate columns in from wherever they were last laid out.
                 UIView.performWithoutAnimation { applyColumnLayout() }
             } else {
                 applyColumnLayout()
@@ -847,9 +878,17 @@ package final class ColumnNavigationController: UINavigationController, UINaviga
             card.adoptView()
             let backSwiped = backDrag > 0 && index >= backSwipeFrom
             let shrink = backSwiped ? Self.backSwipeScale(backSwipeProgress) : 1
-            card.place(
-                in: frames[index], transform: columnTransform(for: index, frames: frames).scaledBy(x: shrink, y: shrink)
-            )
+            let transform = columnTransform(for: index, frames: frames).scaledBy(x: shrink, y: shrink)
+            if card.bounds.size == .zero {
+                // A new card lands in place: inside someone else's animation (a tab switch, say) it would otherwise
+                // grow out of the corner.
+                UIView.performWithoutAnimation {
+                    card.place(in: frames[index], transform: transform)
+                    card.layoutIfNeeded()
+                }
+            } else {
+                card.place(in: frames[index], transform: transform)
+            }
             Self.setBlur(backSwiped ? Self.backSwipeBlur * backSwipeProgress : 0, on: card)
             card.cornerRadius = columnCornerRadius(for: index)
             columnHost.bringSubviewToFront(card)
@@ -947,10 +986,12 @@ package final class ColumnNavigationController: UINavigationController, UINaviga
         if scrollHandoffs[key]?.scrollView === scrollView { return }
         scrollHandoffs[key]?.detach()
         let handoff = ScrollDismissHandoff(scrollView: scrollView)
-        handoff.shouldBegin = { [weak self, weak viewController] in
+        handoff.shouldBegin = { [weak self, weak viewController, weak scrollView] in
             guard let self, let viewController, isColumnar, !isRunningColumnTransition, !isBrowsing, dragMode == nil,
                 let index = viewControllers.firstIndex(of: viewController),
-                dismissal == nil || dismissal?.index == index
+                dismissal == nil || dismissal?.index == index,
+                // The root can't be dismissed: a pull there refreshes, if it can.
+                index > 0 || scrollView?.refreshControl == nil
             else { return false }
             beginDismissal(of: index)
             return true
@@ -974,11 +1015,24 @@ package final class ColumnNavigationController: UINavigationController, UINaviga
         scrollHandoffs[key] = handoff
     }
 
+    /// Re-finds column `viewController`'s main scroll view, which SwiftUI content can put up (or replace) well after
+    /// the column is pushed, such as once a timeline loads.
+    package func columnContentDidLayout(_ viewController: UIViewController) {
+        guard isColumnar, viewControllers.contains(viewController) else { return }
+        attachScrollHandoff(to: viewController)
+    }
+
+    /// The outermost scroll view taking up most of the column's height: its content, not a carousel or text field
+    /// inside it.
     private static func firstScrollView(in view: UIView) -> UIScrollView? {
         var queue = [view]
         while !queue.isEmpty {
             let next = queue.removeFirst()
-            if let scrollView = next as? UIScrollView { return scrollView }
+            if let scrollView = next as? UIScrollView, !(scrollView is UITextView),
+                scrollView.bounds.height >= view.bounds.height / 2
+            {
+                return scrollView
+            }
             queue.append(contentsOf: next.subviews)
         }
         return nil
@@ -1688,10 +1742,14 @@ package final class ColumnNavigationController: UINavigationController, UINaviga
     private func updateVerticalBarItems() {
         let stack = viewControllers
         if settings.columnsPlaceVerticalBarItems {
-            // Only the focused column's buttons go to the vertical bar (the overview hides them); the rest keep theirs.
-            let focused = hostsColumnBarItemsInVerticalBar && !isBrowserOpen ? focusedColumn : nil
+            // As with stand-ins: columns never show buttons in their own bars while the vertical bar hosts them (not
+            // only the focused one), and only the focused column's go to the vertical bar (the overview hides them).
+            let hosts = hostsColumnBarItemsInVerticalBar
+            let focused = hosts && !isBrowserOpen ? focusedColumn : nil
             for (index, viewController) in stack.enumerated() {
-                (viewController as? ColumnBarItemProviding)?.setColumnBarItemsShown(index != focused)
+                let provider = viewController as? ColumnBarItemProviding
+                provider?.setColumnBarItemsShown(!hosts)
+                provider?.setColumnBarItemsInVerticalBar(index == focused)
             }
             return
         }

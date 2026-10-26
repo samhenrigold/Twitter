@@ -119,6 +119,7 @@ let package = Package(
         .target(
             name: "ProfileFeature",
             dependencies: [
+                "ColumnNavigation",
                 "FeedFeature",
                 "TwitterDatabase",
                 .product(name: "ComposableArchitecture", package: "swift-composable-architecture")

@@ -1,3 +1,4 @@
+import ColumnNavigation
 import ComposableArchitecture
 import FeedFeature
 import Models
@@ -52,6 +53,16 @@ struct SettingsView: View {
                 Section("About") {
                     LabeledContent("Version", value: Self.version)
                 }
+
+                #if DEBUG
+                    Section("Debug") {
+                        NavigationLink("Columns") {
+                            ColumnDebugPanel()
+                                .navigationTitle("Columns")
+                                .ignoresSafeArea()
+                        }
+                    }
+                #endif
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
@@ -70,3 +81,14 @@ struct SettingsView: View {
         return "\(version) (\(build))"
     }
 }
+
+#if DEBUG
+    /// The column stack's live tuning, from the prototype.
+    private struct ColumnDebugPanel: UIViewControllerRepresentable {
+        func makeUIViewController(context: Context) -> ColumnDebugPanelViewController {
+            ColumnDebugPanelViewController()
+        }
+
+        func updateUIViewController(_ controller: ColumnDebugPanelViewController, context: Context) {}
+    }
+#endif

@@ -180,6 +180,74 @@ private final class ColumnHostingController<Content: View>: UIHostingController<
         if parent == nil { onRemoved?() }
     }
 
+    override func viewWillLayoutSubviews() {
+        // Decided before the bar first shows, so its buttons never flash in and out.
+        if let columns = navigationController as? ColumnNavigationController {
+            setColumnBarItemsShown(!columns.hostsColumnBarItemsInVerticalBar)
+        }
+        // The column draws its own bar exactly while the navigation controller's is hidden (it's laid out as columns).
+        let showsColumnBar = navigationController?.isNavigationBarHidden == true
+        if chrome.showsColumnBar != showsColumnBar { chrome.showsColumnBar = showsColumnBar }
+        // As a card, the column is already inset from the screen's edges and bars: its bar and content keep plain
+        // symmetric margins instead of following the system's safe area (the Duo's vertical bar, the status bar). As
+        // the plain top of a navigation stack (compact width), it follows the system guides as usual.
+        //
+        // The card sits wherever the strip puts it, often below the status bar, but UIKit hands it the navigation
+        // controller's top safe area regardless. So the header goes by where the column really is: just under
+        // whatever part of the window's top safe area it actually overlaps (usually none). In portrait the bar sits
+        // right at the card's top edge: it gets a little room above and below.
+        var additional = UIEdgeInsets.zero
+        var padding: CGFloat = 0
+        if showsColumnBar, let window = view.window {
+            let inherited = UIEdgeInsets(
+                top: view.safeAreaInsets.top - additionalSafeAreaInsets.top,
+                left: view.safeAreaInsets.left - additionalSafeAreaInsets.left,
+                bottom: 0,
+                right: view.safeAreaInsets.right - additionalSafeAreaInsets.right
+            )
+            let overlap = max(0, window.safeAreaInsets.top - view.convert(view.bounds.origin, to: window).y)
+            padding = window.bounds.height > window.bounds.width ? Self.portraitBarPadding : 0
+            additional = UIEdgeInsets(
+                top: overlap + padding - inherited.top, left: -inherited.left, bottom: 0, right: -inherited.right)
+        }
+        if additionalSafeAreaInsets != additional { additionalSafeAreaInsets = additional }
+        if chrome.barPadding != padding { chrome.barPadding = padding }
+        super.viewWillLayoutSubviews()
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        // Its timeline may only just have loaded: pulling down at its top dismisses the column.
+        (navigationController as? ColumnNavigationController)?.columnContentDidLayout(self)
+        // Its list is the column's content scroll view, for the bars' edge effects.
+        if contentScrollView(for: .top) == nil, let scrollView = Self.mainScrollView(in: view) {
+            setContentScrollView(scrollView)
+        }
+    }
+
+    /// The outermost scroll view taking up most of the column's height: its content, not a carousel inside it.
+    private static func mainScrollView(in view: UIView) -> UIScrollView? {
+        var queue = [view]
+        while !queue.isEmpty {
+            let next = queue.removeFirst()
+            if let scrollView = next as? UIScrollView, !(scrollView is UITextView),
+                scrollView.bounds.height >= view.bounds.height / 2
+            {
+                return scrollView
+            }
+            queue.append(contentsOf: next.subviews)
+        }
+        return nil
+    }
+
+    private static var portraitBarPadding: CGFloat { 8 }
+
+    override func viewSafeAreaInsetsDidChange() {
+        super.viewSafeAreaInsetsDidChange()
+        // Folding, unfolding and rotating change the safe area: measure again.
+        view.setNeedsLayout()
+    }
+
     func makeColumnBarItems() -> [UIBarButtonItem] {
         let compose = UIBarButtonItem(
             title: String(localized: "New Tweet"),
@@ -199,14 +267,28 @@ private final class ColumnHostingController<Content: View>: UIHostingController<
         if chrome.showsBarItems != shown { chrome.showsBarItems = shown }
     }
 
+    func setColumnBarItemsInVerticalBar(_ inVerticalBar: Bool) {
+        if chrome.isInVerticalBar != inVerticalBar { chrome.isInVerticalBar = inVerticalBar }
+    }
+
     private static var composeIdentifier: String { "column.compose" }
 }
 
-/// Whether a column shows its bar buttons in its own bar (not while iPhone Duo's vertical bar hosts them).
+/// Where a column's bar buttons go: its own bar, iPhone Duo's vertical bar (the focused column), or nowhere (the
+/// others, while the vertical bar hosts the focused one's).
 @MainActor
 @Observable
 private final class ColumnChrome {
+    /// Whether the column draws its own bar (laid out as a column); `nil` until its first layout.
+    var showsColumnBar: Bool?
+    /// Room above and below the column's own bar (in portrait).
+    var barPadding: CGFloat = 0
     var showsBarItems = true
+    var isInVerticalBar = false
+
+    var placement: ColumnBarPlacement {
+        isInVerticalBar ? .verticalBar : showsBarItems ? .ownBar : .hidden
+    }
 }
 
 /// A column: with its own bar as a column, or in the navigation controller's bar on a plain stack (bridged from the
@@ -221,13 +303,13 @@ private struct ColumnScreen<Content: View>: View {
 
     var body: some View {
         Group {
-            // Columns draw their own bars (the navigation controller's shows only the top one, and is hidden).
-            if horizontalSizeClass == .regular {
+            // Columns draw their own bars (the navigation controller's shows only the top one, and is hidden). Before
+            // the first layout says which, the size class is the best guess.
+            if chrome.showsColumnBar ?? (horizontalSizeClass == .regular) {
                 NavigationStack {
                     screen
-                        // The card is laid out clear of the window's sides (iPhone Duo's vertical bar), but is handed
-                        // their insets wherever it overlaps them.
-                        .ignoresSafeArea(.container, edges: .horizontal)
+                        // The room below the bar, for the content and its scroll indicator alike.
+                        .safeAreaPadding(.top, chrome.barPadding)
                 }
             } else {
                 screen
@@ -238,11 +320,14 @@ private struct ColumnScreen<Content: View>: View {
 
     private var screen: some View {
         content
-            .environment(\.columnBarItemsInVerticalBar, !chrome.showsBarItems)
+            // Titles sit at the leading edge, never centered.
+            .toolbarTitleAlignment(.leading)
+            .environment(\.columnBarPlacement, chrome.placement)
             .toolbar {
                 // In the root's own bar; while a column is focused, in iPhone Duo's vertical bar with its other buttons.
-                if id == nil || !chrome.showsBarItems {
-                    ToolbarItem(placement: chrome.showsBarItems ? .topBarTrailing : .bottomBar) {
+                // Never in the bar of a column the vertical bar isn't showing.
+                if (id == nil && chrome.placement == .ownBar) || chrome.placement == .verticalBar {
+                    ToolbarItem(placement: chrome.placement == .verticalBar ? .bottomBar : .topBarTrailing) {
                         Button {
                             stack.send(.composeButtonTapped)
                         } label: {

@@ -8,7 +8,7 @@ import TwitterUI
 
 package struct ProfileView: View {
     let store: StoreOf<ProfileFeature>
-    @Environment(\.columnBarItemsInVerticalBar) private var columnBarItemsInVerticalBar
+    @Environment(\.columnBarPlacement) private var columnBarPlacement
 
     package init(store: StoreOf<ProfileFeature>) {
         self.store = store
@@ -40,7 +40,7 @@ package struct ProfileView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if store.hasMenu {
-                ColumnMenuToolbarItem("Account", isInVerticalBar: columnBarItemsInVerticalBar) {
+                ColumnMenuToolbarItem("Account", placement: columnBarPlacement) {
                     ProfileMenuItems(store: store)
                 }
             }

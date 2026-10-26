@@ -8,7 +8,7 @@ import WebKit
 /// beside them. Links to posts and profiles open as columns after it instead of loading x.com.
 package struct WebPanelView: View {
     let store: StoreOf<WebFeature>
-    @Environment(\.columnBarItemsInVerticalBar) private var columnBarItemsInVerticalBar
+    @Environment(\.columnBarPlacement) private var columnBarPlacement
     @State private var holder = WebPageHolder()
 
     package init(store: StoreOf<WebFeature>) {
@@ -26,28 +26,13 @@ package struct WebPanelView: View {
             .navigationTitle(page.title.isEmpty ? store.url.displayHost : page.title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItemGroup(placement: .topBarLeading) {
-                    Button("Back", twitterIcon: .chevronLeft) {
-                        if let item = page.backForwardList.backList.last { page.load(item) }
-                    }
-                    .disabled(page.backForwardList.backList.isEmpty)
-
-                    Button("Forward", twitterIcon: .chevronRight) {
-                        if let item = page.backForwardList.forwardList.first { page.load(item) }
-                    }
-                    .disabled(page.backForwardList.forwardList.isEmpty)
+                // All of a column's buttons go where its bar items go: its own bar, iPhone Duo's vertical bar while
+                // it's focused, or nowhere while the vertical bar shows another column's.
+                if columnBarPlacement != .hidden {
+                    pageControls(page)
                 }
 
-                ToolbarItem(placement: .topBarTrailing) {
-                    if page.isLoading {
-                        Button("Stop", twitterIcon: .close) { page.stopLoading() }
-                    } else {
-                        Button("Reload", twitterIcon: .refresh) { page.reload() }
-                    }
-                }
-
-                ColumnMenuToolbarItem("Share", twitterIcon: .shareStroke, isInVerticalBar: columnBarItemsInVerticalBar)
-                {
+                ColumnMenuToolbarItem("Share", twitterIcon: .shareStroke, placement: columnBarPlacement) {
                     WebPanelMenuItems(store: store)
                 }
             }
@@ -57,6 +42,32 @@ package struct WebPanelView: View {
             }
             .onChange(of: page.url) { reportPage(page) }
             .onChange(of: page.title) { reportPage(page) }
+    }
+
+    @ContentBuilder
+    private func pageControls(_ page: WebPage) -> some ToolbarContent {
+        let inVerticalBar = columnBarPlacement == .verticalBar
+        ToolbarItemGroup(placement: inVerticalBar ? .bottomBar : .topBarLeading) {
+            Button("Back", twitterIcon: .chevronLeft) {
+                if let item = page.backForwardList.backList.last { page.load(item) }
+            }
+            .disabled(page.backForwardList.backList.isEmpty)
+
+            Button("Forward", twitterIcon: .chevronRight) {
+                if let item = page.backForwardList.forwardList.first { page.load(item) }
+            }
+            .disabled(page.backForwardList.forwardList.isEmpty)
+        }
+        .axisBehavior(.verticalPreferred)
+
+        ToolbarItem(placement: inVerticalBar ? .bottomBar : .topBarTrailing) {
+            if page.isLoading {
+                Button("Stop", twitterIcon: .close) { page.stopLoading() }
+            } else {
+                Button("Reload", twitterIcon: .refresh) { page.reload() }
+            }
+        }
+        .axisBehavior(.verticalPreferred)
     }
 
     private func reportPage(_ page: WebPage) {
