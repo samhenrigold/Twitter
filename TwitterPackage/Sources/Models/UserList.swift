@@ -69,3 +69,14 @@ extension FeedSource {
         .search(query: quotesQueryPrefix + tweetID, latest: true)
     }
 }
+
+extension TimelineParser {
+    /// The accounts in a typeahead response (`search/typeahead.json`), which come in v1.1's flat shape.
+    package static func typeaheadUsers(from root: Any) -> [User] {
+        ((root as? JSON)?["users"] as? [JSON] ?? []).compactMap { legacy in
+            guard let id = (legacy["id_str"] as? String) ?? (legacy["id"] as? Int).map(String.init) else { return nil }
+            return user(from: ["rest_id": id, "legacy": legacy, "is_blue_verified": legacy["is_blue_verified"] ?? false]
+            )
+        }
+    }
+}

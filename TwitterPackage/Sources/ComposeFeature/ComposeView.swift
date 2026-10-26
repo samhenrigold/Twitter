@@ -32,6 +32,12 @@ package struct ComposeView: View {
                     .lineLimit(4...)
                     .focused($isEditorFocused)
 
+                    if !store.mentionSuggestions.isEmpty {
+                        MentionSuggestions(users: store.mentionSuggestions) {
+                            store.send(.mentionSuggestionTapped($0))
+                        }
+                    }
+
                     if !store.attachments.isEmpty {
                         AttachmentStrip(attachments: store.attachments) { id in
                             store.send(.removeAttachmentButtonTapped(id), animation: .snappy)
@@ -237,5 +243,36 @@ private struct ReplyContext: View {
         }
         .tweetMetrics()
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// Accounts to complete the mention being typed, as Twitter's composer lists them.
+private struct MentionSuggestions: View {
+    let users: [User]
+    let select: (User) -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            ForEach(users) { user in
+                Button {
+                    select(user)
+                } label: {
+                    HStack(spacing: 10) {
+                        Avatar(user: user, size: 36)
+
+                        AuthorLine(user: user, date: nil, layout: .stacked)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .padding(.vertical, 6)
+                    .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+
+                if user.id != users.last?.id {
+                    Divider()
+                }
+            }
+        }
+        .tweetMetrics()
     }
 }

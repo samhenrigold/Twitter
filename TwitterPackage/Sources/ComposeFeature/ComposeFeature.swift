@@ -17,6 +17,8 @@ package struct ComposeFeature {
         /// already let go of it.
         var isDismissing = false
         var isPosting = false
+        /// Accounts matching the mention being typed at the end of the text.
+        var mentionSuggestions: [User] = []
         var text = ""
 
         package init(draft: Draft) {
@@ -31,6 +33,15 @@ package struct ComposeFeature {
         var canPost: Bool {
             !isPosting && !isDismissing && remainingCharacters >= 0
                 && (!text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !attachments.isEmpty)
+        }
+
+        /// The handle being typed after an @ at the end of the text, if any ("@poin" gives "poin").
+        var mentionQuery: String? {
+            guard let at = text.lastIndex(of: "@") else { return nil }
+            if at > text.startIndex, let before = text[..<at].last, before.isLetter || before.isNumber { return nil }
+            let handle = text[text.index(after: at)...]
+            guard !handle.isEmpty, handle.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "_" }) else { return nil }
+            return String(handle)
         }
 
         /// How many more photos fit; none once a GIF or video is attached.
@@ -53,14 +64,21 @@ package struct ComposeFeature {
         case cancelButtonTapped
         /// Media picked from the library, loaded and ready to upload.
         case mediaPicked([MediaUpload])
+        case mentionSuggestionTapped(User)
+        case mentionSuggestionsResponse(query: String, Result<[User], any Error>)
         case postButtonTapped
         case postResponse(Result<String, any Error>)
         case removeAttachmentButtonTapped(Attachment.ID)
     }
 
     @Dependency(TwitterClient.self) var client
+    @Dependency(\.continuousClock) var clock
     @Dependency(\.dismiss) var dismiss
     @Dependency(\.uuid) var uuid
+
+    enum CancelID {
+        case mentionSearch
+    }
 
     package init() {}
 
@@ -68,7 +86,32 @@ package struct ComposeFeature {
         BindingReducer()
         Reduce { state, action in
             switch action {
+            case .binding(\.text):
+                guard let query = state.mentionQuery else {
+                    state.mentionSuggestions = []
+                    return .cancel(id: CancelID.mentionSearch)
+                }
+                // Once typing pauses.
+                return .run { send in
+                    try await clock.sleep(for: .milliseconds(250))
+                    await send(.mentionSuggestionsResponse(query: query, Result { try await client.typeahead(query) }))
+                }
+                .cancellable(id: CancelID.mentionSearch, cancelInFlight: true)
+
             case .binding:
+                return .none
+
+            case .mentionSuggestionTapped(let user):
+                guard let query = state.mentionQuery else { return .none }
+                state.text.removeLast(query.count + 1)
+                state.text += "@\(user.screenName) "
+                state.mentionSuggestions = []
+                return .cancel(id: CancelID.mentionSearch)
+
+            case .mentionSuggestionsResponse(let query, let result):
+                // Only for what's still being typed.
+                guard query == state.mentionQuery else { return .none }
+                state.mentionSuggestions = Array(((try? result.get()) ?? []).prefix(6))
                 return .none
 
             case .cancelButtonTapped:

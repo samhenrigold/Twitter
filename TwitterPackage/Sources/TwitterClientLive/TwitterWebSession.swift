@@ -477,6 +477,19 @@ actor TwitterWebSession {
         return TimelineParser.listPage(from: try await graphQL("CombinedLists", variables: variables))
     }
 
+    /// Accounts for completing a mention, as x.com's composer suggests them.
+    func typeahead(_ query: String) async throws -> [User] {
+        var components = URLComponents()
+        components.queryItems = [
+            URLQueryItem(name: "include_ext_is_blue_verified", value: "1"),
+            URLQueryItem(name: "q", value: "@" + query),
+            URLQueryItem(name: "src", value: "compose"),
+            URLQueryItem(name: "result_type", value: "users")
+        ]
+        return TimelineParser.typeaheadUsers(
+            from: try await rest("/i/api/1.1/search/typeahead.json?" + (components.percentEncodedQuery ?? "")))
+    }
+
     /// What's trending, from the web client's Explore page.
     func trends() async throws -> [Trend] {
         TimelineParser.trends(from: try await graphQL("ExplorePage", variables: [:]))

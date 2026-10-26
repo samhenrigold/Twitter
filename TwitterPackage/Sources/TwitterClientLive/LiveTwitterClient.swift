@@ -33,6 +33,7 @@ extension TwitterClient: DependencyKey {
             signIn: { try await store.signIn(cookies: $0) },
             signOut: { await store.signOut() },
             trends: { try await store.session().trends() },
+            typeahead: { try await store.session().typeahead($0) },
             user: { try await store.session().user(screenName: $0) },
             users: { source, cursor in try await store.session().users(source, cursor: cursor) }
         )
