@@ -10,6 +10,7 @@ import TwitterUI
 /// spacer makes room for the focused post to reach the top even when it has few replies.
 package struct ThreadView: View {
     let store: StoreOf<FeedFeature>
+    @Environment(\.columnBarItemsInVerticalBar) private var columnBarItemsInVerticalBar
 
     package init(store: StoreOf<FeedFeature>) {
         self.store = store
@@ -78,7 +79,7 @@ package struct ThreadView: View {
         .feedInteractions(store: store)
         .toolbar {
             if store.focusedTweet != nil {
-                ColumnMenuToolbarItem("More") {
+                ColumnMenuToolbarItem("More", isInVerticalBar: columnBarItemsInVerticalBar) {
                     ThreadMenuItems(store: store)
                 }
             }

@@ -1,25 +1,32 @@
 import SwiftUI
 
-/// A screen's "…" menu, at the trailing end of its bar.
+/// A screen's "…" menu: at the trailing end of its bar, or in iPhone Duo's vertical bar while the screen is the focused
+/// column (`isInVerticalBar`, from ``EnvironmentValues/columnBarItemsInVerticalBar``).
 package struct ColumnMenuToolbarItem<Items: View>: ToolbarContent {
     let icon: TwitterIcon
+    let isInVerticalBar: Bool
     let title: LocalizedStringKey
     let items: Items
 
-    package init(_ title: LocalizedStringKey, twitterIcon icon: TwitterIcon = .more, @ViewBuilder items: () -> Items) {
+    package init(
+        _ title: LocalizedStringKey, twitterIcon icon: TwitterIcon = .more, isInVerticalBar: Bool,
+        @ViewBuilder items: () -> Items
+    ) {
         self.icon = icon
+        self.isInVerticalBar = isInVerticalBar
         self.title = title
         self.items = items()
     }
 
     package var body: some ToolbarContent {
-        ToolbarItem(placement: .topBarTrailing) {
+        ToolbarItem(placement: isInVerticalBar ? .bottomBar : .topBarTrailing) {
             Menu {
                 items
             } label: {
                 Label(title, twitterIcon: icon)
             }
         }
+        .axisBehavior(.verticalPreferred)
     }
 }
 
@@ -68,4 +75,9 @@ package struct DetailActionBar<Content: View>: View {
         .overlay(alignment: .top) { Divider() }
         .overlay(alignment: .bottom) { Divider() }
     }
+}
+
+extension EnvironmentValues {
+    /// Whether this screen is the focused column, whose bar buttons iPhone Duo's vertical bar carries.
+    @Entry package var columnBarItemsInVerticalBar = false
 }

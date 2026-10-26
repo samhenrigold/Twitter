@@ -60,6 +60,8 @@ package final class TabStackController: NSObject {
         let root = ColumnHostingController(stack: store, id: nil, width: Self.columnWidth) {
             TabRootView(store: store, title: title)
         }
+        // Columns put their own (SwiftUI) buttons in iPhone Duo's vertical bar when focused.
+        ColumnSettings.shared.columnsPlaceVerticalBarItems = true
         navigationController = ColumnNavigationController(rootViewController: root)
         super.init()
         navigationController.registerForTraitChanges([UITraitHorizontalSizeClass.self]) {
@@ -149,8 +151,8 @@ extension TabStackController: SFSafariViewControllerDelegate {
     }
 }
 
-/// One column's screen. It offers New Tweet to iPhone Duo's vertical bar, which carries the focused column's buttons;
-/// without a vertical bar, the root keeps New Tweet in its own bar.
+/// One column's screen. While it's the focused column, its buttons (New Tweet and its "…") go in iPhone Duo's vertical
+/// bar; otherwise they stay in its own bar, the root's with New Tweet.
 private final class ColumnHostingController<Content: View>: UIHostingController<ColumnScreen<Content>>,
     ColumnBarItemProviding
 {
@@ -235,9 +237,11 @@ private struct ColumnScreen<Content: View>: View {
 
     private var screen: some View {
         content
+            .environment(\.columnBarItemsInVerticalBar, !chrome.showsBarItems)
             .toolbar {
-                if id == nil, chrome.showsBarItems {
-                    ToolbarItem(placement: .topBarTrailing) {
+                // In the root's own bar; while a column is focused, in iPhone Duo's vertical bar with its other buttons.
+                if id == nil || !chrome.showsBarItems {
+                    ToolbarItem(placement: chrome.showsBarItems ? .topBarTrailing : .bottomBar) {
                         Button {
                             stack.send(.composeButtonTapped)
                         } label: {
@@ -249,6 +253,7 @@ private struct ColumnScreen<Content: View>: View {
                         }
                         .buttonStyle(.glassProminent)
                     }
+                    .axisBehavior(.verticalPreferred)
                 }
             }
     }

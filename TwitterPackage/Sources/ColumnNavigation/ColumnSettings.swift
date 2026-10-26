@@ -22,6 +22,9 @@ package final class ColumnSettings {
     var showsOverlay = false { didSet { notify() } }
     /// On the Duo, the focused column's bar buttons move to the vertical bar.
     var verticalBarItems = true { didSet { notify() } }
+    /// The focused column places its own buttons in the vertical bar (as SwiftUI does with a vertical-preferred toolbar
+    /// item), told by `setColumnBarItemsShown(false)`; off, the navigation controller's toolbar hosts stand-ins of them.
+    package var columnsPlaceVerticalBarItems = false { didSet { notify() } }
     /// Swiping a column off by its leading seam (or the screen's leading edge) pops it and everything after it,
     /// with it shrinking, fading and blurring on the way. Off for cards for now (always on edge to edge).
     var cardBackSwipeEnabled = false { didSet { notify() } }

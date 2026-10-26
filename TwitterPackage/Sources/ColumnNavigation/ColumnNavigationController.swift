@@ -1687,6 +1687,14 @@ package final class ColumnNavigationController: UINavigationController, UINaviga
     /// drops them meanwhile. Only while columnar with a vertical bar present.
     private func updateVerticalBarItems() {
         let stack = viewControllers
+        if settings.columnsPlaceVerticalBarItems {
+            // Only the focused column's buttons go to the vertical bar (the overview hides them); the rest keep theirs.
+            let focused = hostsColumnBarItemsInVerticalBar && !isBrowserOpen ? focusedColumn : nil
+            for (index, viewController) in stack.enumerated() {
+                (viewController as? ColumnBarItemProviding)?.setColumnBarItemsShown(index != focused)
+            }
+            return
+        }
         let hosts = hostsColumnBarItemsInVerticalBar
         let source =
             hosts && stack.indices.contains(focusedColumn) ? stack[focusedColumn] as? ColumnBarItemProviding : nil

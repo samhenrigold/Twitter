@@ -8,6 +8,7 @@ import WebKit
 /// beside them. Links to posts and profiles open as columns after it instead of loading x.com.
 package struct WebPanelView: View {
     let store: StoreOf<WebFeature>
+    @Environment(\.columnBarItemsInVerticalBar) private var columnBarItemsInVerticalBar
     @State private var holder = WebPageHolder()
 
     package init(store: StoreOf<WebFeature>) {
@@ -45,7 +46,8 @@ package struct WebPanelView: View {
                     }
                 }
 
-                ColumnMenuToolbarItem("Share", twitterIcon: .shareStroke) {
+                ColumnMenuToolbarItem("Share", twitterIcon: .shareStroke, isInVerticalBar: columnBarItemsInVerticalBar)
+                {
                     WebPanelMenuItems(store: store)
                 }
             }
