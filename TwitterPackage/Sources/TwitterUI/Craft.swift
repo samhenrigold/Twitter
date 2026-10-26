@@ -3,7 +3,7 @@ import SwiftUI
 // Small details carried over from Twitter for iPad (2012), drawn flat: a folded corner for your mark on a post, a
 // band where the timeline has a gap, a fleuron at its end.
 
-/// Your mark on a post, like folding down the corner of a page: orange for a like, green for a repost, split
+/// Your mark on a post, like folding down the corner of a page: pink for a like, green for a repost, split
 /// diagonally for both. Drawn in the row's top-trailing corner.
 package struct DogEar: View {
     let isLiked: Bool

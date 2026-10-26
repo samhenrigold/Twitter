@@ -228,6 +228,59 @@ struct FeedFeatureTests {
     }
 
     @Test
+    func replyThreadJoinsItsConversationAndLoadsWhatsAboveIt() async {
+        let root = Tweet.mocks[0]
+        let parent = Tweet.mocks[1]
+        let reply = Tweet.mocks[2]
+        let earlier = ShowMoreCursor(
+            id: FeedFeature.State.earlierConversationID, cursor: "top", label: "Show earlier Tweets")
+        let store = TestStore(
+            initialState: FeedFeature.State(
+                source: .thread(tweetID: reply.id), items: [.tweet(FeedTweet(tweet: reply))])
+        ) {
+            FeedFeature()
+        } withDependencies: {
+            $0[TwitterClient.self].feed = { _, cursor in
+                cursor == "top"
+                    ? FeedPage(items: [.tweet(FeedTweet(tweet: root))], bottomCursor: nil, topCursor: nil)
+                    : FeedPage(
+                        items: [.tweet(FeedTweet(tweet: parent)), .tweet(FeedTweet(tweet: reply))],
+                        bottomCursor: nil,
+                        topCursor: "top"
+                    )
+            }
+            $0[TimelineCache.self].load = { _ in nil }
+        }
+        func joined(_ tweet: Tweet, above: Bool, below: Bool) -> FeedItem {
+            var item = FeedTweet(tweet: tweet)
+            item.connectsAbove = above
+            item.connectsBelow = below
+            return .tweet(item)
+        }
+
+        await store.send(.task) {
+            $0.isLoading = true
+        }
+        await store.receive(\.pageResponse) {
+            $0.isLoading = false
+            $0.hasLoaded = true
+            $0.items = [
+                .showMore(earlier), joined(parent, above: false, below: true), joined(reply, above: true, below: false)
+            ]
+        }
+        await store.send(.showMoreButtonTapped(earlier)) {
+            $0.loadingShowMoreIDs = [FeedItem.showMore(earlier).id]
+        }
+        await store.receive(\.showMoreResponse) {
+            $0.loadingShowMoreIDs = []
+            $0.items = [
+                joined(root, above: false, below: true), joined(parent, above: true, below: true),
+                joined(reply, above: true, below: false)
+            ]
+        }
+    }
+
+    @Test
     func showMoreFailureKeepsRow() async {
         struct Failure: Error {}
         let cursor = ShowMoreCursor(id: "cursor-showmore-1", cursor: "more")

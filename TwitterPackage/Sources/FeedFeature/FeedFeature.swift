@@ -53,6 +53,31 @@ package struct FeedFeature {
             self.items = items
         }
 
+        static let earlierConversationID = "cursor-top-conversation"
+
+        /// In a thread, joins the conversation above the focused post into one line down to it, and offers whatever
+        /// Twitter left out above it (a long conversation sends only its last few posts, with a cursor for the rest).
+        mutating func showEarlierConversation(above topCursor: String?) {
+            guard let focusedID = focusedItemID, let focusedIndex = items.index(id: focusedID) else { return }
+            items.remove(id: FeedItem.showMore(ShowMoreCursor(id: Self.earlierConversationID, cursor: "")).id)
+            if let topCursor {
+                items.insert(
+                    .showMore(
+                        ShowMoreCursor(
+                            id: Self.earlierConversationID, cursor: topCursor, label: "Show earlier Tweets")),
+                    at: 0
+                )
+            }
+            let focusedIndexNow = items.index(id: focusedID) ?? focusedIndex
+            for index in items.indices.prefix(through: focusedIndexNow) {
+                guard case .tweet(var tweet) = items[index] else { continue }
+                let follows = index > 0 && { if case .tweet = items[index - 1] { true } else { false } }()
+                tweet.connectsAbove = follows
+                if index < focusedIndexNow { tweet.connectsBelow = true }
+                items[index] = .tweet(tweet)
+            }
+        }
+
         /// Timelines the reader works through keep their place; a thread or a search is read fresh each time.
         var keepsReadingPosition: Bool {
             switch source {
@@ -204,6 +229,7 @@ package struct FeedFeature {
                 state.errorMessage = nil
                 if isRefresh {
                     state.items = IdentifiedArray(page.items, uniquingIDsWith: { first, _ in first })
+                    state.showEarlierConversation(above: page.topCursor)
                 } else {
                     for item in page.items where state.items[id: item.id] == nil {
                         state.items.append(item)
@@ -309,6 +335,10 @@ package struct FeedFeature {
                 // A timeline gap that's still open after this page gets a new gap row where it now starts.
                 if cursor.id.hasPrefix(TimelineMerge.gapPrefix), !reachedExisting, let next = page.bottomCursor {
                     state.items.insert(.showMore(TimelineMerge.gap(cursor: next)), at: position)
+                }
+                // Earlier in a conversation: there may be more above still.
+                if cursor.id == State.earlierConversationID {
+                    state.showEarlierConversation(above: page.topCursor)
                 }
                 state.$engagements.withLock { $0.refresh(from: page.items.lazy.flatMap(\.tweets)) }
                 return .none

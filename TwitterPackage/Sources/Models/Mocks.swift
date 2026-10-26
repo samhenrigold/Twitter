@@ -227,6 +227,25 @@ extension Tweet {
         return tweet
     }()
 
+    /// A reply in the timeline, whose thread opens with the conversation it replies to above it.
+    package static let mockReply: Tweet = {
+        var tweet = Tweet.mock(
+            id: "110", author: .mockAffiliate, text: "Mine did too. The column view is the best part.", secondsAgo: 300)
+        tweet.replyingTo = ["samhenrigold", "pointfreeco"]
+        return tweet
+    }()
+
+    /// What ``mockReply`` replies to, oldest first.
+    package static let mockReplyAncestors: [Tweet] = [
+        mocks[0],
+        {
+            var tweet = Tweet.mock(
+                id: "111", author: .mock, text: "Just upgraded the whole app. Everything compiles!", secondsAgo: 900)
+            tweet.replyingTo = ["pointfreeco"]
+            return tweet
+        }()
+    ]
+
     package static let mockReplies: [Tweet] = [
         .mock(id: "201", author: .mockFriend, text: "Congrats on the launch!", secondsAgo: 600),
         .mock(id: "202", author: .mock, text: "Thank you! More to come.", secondsAgo: 500)
@@ -235,6 +254,8 @@ extension Tweet {
 
 extension FeedPage {
     package static let mockShowMoreCursor = "mock-show-more"
+    /// The rest of ``Tweet/mockReply``'s conversation, above what its thread first sends.
+    package static let mockEarlierCursor = "mock-earlier"
 
     package static func mock(_ source: FeedSource) -> FeedPage {
         mock(source, cursor: nil)
@@ -253,14 +274,20 @@ extension FeedPage {
                 topCursor: nil
             )
         }
+        if cursor == mockEarlierCursor {
+            return FeedPage(items: Tweet.mockReplyAncestors.dropLast().map(item), bottomCursor: nil, topCursor: nil)
+        }
         if case .thread(let tweetID) = source {
             // The opened post is the thread's focus, so mock threads show it focused like real ones.
-            let focused = (Tweet.mocks + [.mockRestricted]).first { $0.id == tweetID } ?? .mockRestricted
+            let focused = (Tweet.mocks + [.mockRestricted, .mockReply]).first { $0.id == tweetID } ?? .mockRestricted
             var replies = Tweet.mockReplies.map { FeedTweet(id: $0.id, tweet: $0) }
             replies[0].connectsBelow = true
             replies[1].connectsAbove = true
+            // A reply's thread starts with the conversation above it: like a long conversation, only the nearest of
+            // it, with a cursor for the rest.
+            let ancestors = tweetID == Tweet.mockReply.id ? Array(Tweet.mockReplyAncestors.suffix(1)) : []
             return FeedPage(
-                items: [
+                items: ancestors.map(item) + [
                     item(focused),
                     .tweet(replies[0]),
                     .tweet(replies[1]),
@@ -268,7 +295,7 @@ extension FeedPage {
                     .showMore(ShowMoreCursor(id: "cursor-showmorethreads-1", cursor: mockShowMoreCursor))
                 ],
                 bottomCursor: nil,
-                topCursor: nil
+                topCursor: ancestors.isEmpty ? nil : mockEarlierCursor
             )
         }
         if case .search(let query, _) = source, query.hasPrefix(FeedSource.quotesQueryPrefix) {
@@ -279,7 +306,8 @@ extension FeedPage {
             return FeedPage(
                 items: quotes.enumerated().map { index, quote in
                     var tweet = Tweet.mock(
-                        id: "q\(index)-\(quotedID)", author: quote.0, text: quote.1, secondsAgo: Double(index + 1) * 900)
+                        id: "q\(index)-\(quotedID)", author: quote.0, text: quote.1, secondsAgo: Double(index + 1) * 900
+                    )
                     tweet.quoted = [quoted]
                     return item(tweet)
                 },
@@ -290,7 +318,8 @@ extension FeedPage {
         var items = Tweet.mocks.map(item)
         items.insert(item(.mockLongPost), at: 1)
         items.insert(item(.mockPoll), at: 2)
-        items.insert(.tombstone(Tombstone(id: "tweet-109", text: "This Tweet was deleted by the Tweet author.")), at: 3)
+        items.insert(item(.mockReply), at: 3)
+        items.insert(.tombstone(Tombstone(id: "tweet-109", text: "This Tweet was deleted by the Tweet author.")), at: 4)
         items += [item(.mockCommunityNote), item(.mockRestricted), item(.mockQuotingDeleted), item(.mockFinalPoll)]
         // `--mock-media`: photos to open in the viewer, kept out of the default set so snapshots stay put.
         if ProcessInfo.processInfo.arguments.contains("--mock-media") {

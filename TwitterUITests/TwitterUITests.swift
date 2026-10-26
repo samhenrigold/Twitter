@@ -15,7 +15,8 @@ final class ColumnGestureUITests: XCTestCase {
         let frame = app.windows.firstMatch.frame
         // In the newest column's bar: the trailing card, just below its top edge.
         let start = point(in: app, x: frame.width * 0.6, y: 60)
-        start.press(forDuration: 0.05, thenDragTo: point(in: app, x: frame.width * 0.6, y: 460), withVelocity: 900,
+        start.press(
+            forDuration: 0.05, thenDragTo: point(in: app, x: frame.width * 0.6, y: 460), withVelocity: 900,
             thenHoldForDuration: 0)
         sleep(2)
     }
@@ -26,7 +27,8 @@ final class ColumnGestureUITests: XCTestCase {
         let app = launch("--open-thread")
         let frame = app.windows.firstMatch.frame
         let start = point(in: app, x: frame.width * 0.3, y: frame.height * 0.5)
-        start.press(forDuration: 0.05, thenDragTo: point(in: app, x: frame.width * 0.3 + 320, y: frame.height * 0.5),
+        start.press(
+            forDuration: 0.05, thenDragTo: point(in: app, x: frame.width * 0.3 + 320, y: frame.height * 0.5),
             withVelocity: 600, thenHoldForDuration: 0.1)
         sleep(2)
     }
@@ -38,13 +40,28 @@ final class ColumnGestureUITests: XCTestCase {
         let frame = app.windows.firstMatch.frame
         let y = frame.height * 0.5
         point(in: app, x: frame.width * 0.3, y: y)
-            .press(forDuration: 0.05, thenDragTo: point(in: app, x: frame.width * 0.3 + 260, y: y),
+            .press(
+                forDuration: 0.05, thenDragTo: point(in: app, x: frame.width * 0.3 + 260, y: y),
                 withVelocity: 1200, thenHoldForDuration: 0)
         sleep(1)
         point(in: app, x: frame.width * 0.6, y: y)
-            .press(forDuration: 0.05, thenDragTo: point(in: app, x: frame.width * 0.6 - 260, y: y),
+            .press(
+                forDuration: 0.05, thenDragTo: point(in: app, x: frame.width * 0.6 - 260, y: y),
                 withVelocity: 1200, thenHoldForDuration: 0)
         sleep(1)
+    }
+
+    /// Opens a reply's thread and scrolls up to the conversation above it.
+    @MainActor
+    func testScrollThreadUpToContext() throws {
+        let app = launch("--open-reply")
+        let frame = app.windows.firstMatch.frame
+        let x = frame.width * 0.5
+        point(in: app, x: x, y: frame.height * 0.3)
+            .press(
+                forDuration: 0.05, thenDragTo: point(in: app, x: x, y: frame.height * 0.8), withVelocity: 800,
+                thenHoldForDuration: 0.5)
+        sleep(6)
     }
 
     /// Turns the device to the orientation named in the `UITEST_ORIENTATION` environment variable (portrait,
@@ -55,7 +72,7 @@ final class ColumnGestureUITests: XCTestCase {
         let environment = ProcessInfo.processInfo.environment
         let orientations: [String: UIDeviceOrientation] = [
             "portrait": .portrait, "portraitUpsideDown": .portraitUpsideDown,
-            "landscapeLeft": .landscapeLeft, "landscapeRight": .landscapeRight,
+            "landscapeLeft": .landscapeLeft, "landscapeRight": .landscapeRight
         ]
         if let name = environment["UITEST_ORIENTATION"], let orientation = orientations[name] {
             XCUIDevice.shared.orientation = orientation

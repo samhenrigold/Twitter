@@ -174,6 +174,10 @@ extension MainFeature.Tab {
             if arguments.contains("--open-thread"), let tweet = Tweet.mocks.first {
                 store.send(.home(.root(.feeds(.delegate(.open(.thread(tweet)))))))
             }
+            // `--open-reply`: a reply's thread, with the conversation it replies to above it.
+            if arguments.contains("--open-reply") {
+                store.send(.home(.root(.feeds(.delegate(.open(.thread(.mockReply)))))))
+            }
             if arguments.contains("--open-web"), let url = URL(string: "https://www.pointfree.co") {
                 // Once the stack knows whether it has room for a web panel, rather than Safari's view.
                 Task { @MainActor in

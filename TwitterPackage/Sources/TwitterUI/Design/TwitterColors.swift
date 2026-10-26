@@ -10,7 +10,7 @@ extension Color {
     package static let twitterDivider = Color(.twitterDivider)
     /// blue500: links, brand, verified.
     package static let twitterBlue = Color(.twitterBlue)
-    /// Twitter 4.x's favorite-star orange, at the depth of `ic_action_fave_on`'s lower edge so a count reads on white.
+    /// Twitter's like pink (pink500), for the heart and its count.
     package static let twitterLike = Color(.twitterLike)
     /// Twitter 4.x's retweet green, from `ic_action_rt_on`'s lower edge.
     package static let twitterRepost = Color(.twitterRepost)
