@@ -122,6 +122,12 @@ final class ColumnHostingController<Content: View>: UIHostingController<ColumnSc
             primaryAction: UIAction { [weak self] _ in self?.performColumnBarAction(Self.composeIdentifier) }
         )
         compose.identifier = Self.composeIdentifier
+        // Held, its drafts, as Twitter's compose button.
+        compose.menu = UIMenu(children: [
+            UIAction(title: String(localized: "Drafts"), image: TwitterIcon.drafts.uiImage) { [weak self] _ in
+                self?.stack.send(.composeButtonLongPressed)
+            }
+        ])
         compose.style = .prominent
         return [compose]
     }
@@ -213,14 +219,21 @@ struct ColumnScreen<Content: View>: View {
                 // Never in the bar of a column the vertical bar isn't showing.
                 if (id == nil && chrome.placement == .ownBar) || chrome.placement == .verticalBar {
                     ToolbarItem(placement: chrome.placement == .verticalBar ? .bottomBar : .topBarTrailing) {
-                        Button {
-                            stack.send(.composeButtonTapped)
+                        // Held, its drafts, as Twitter's compose button. A bar button's hold is its menu.
+                        Menu {
+                            Button {
+                                stack.send(.composeButtonLongPressed)
+                            } label: {
+                                Label("Drafts", twitterIcon: .drafts)
+                            }
                         } label: {
                             Label {
                                 Text("New Tweet")
                             } icon: {
                                 TwitterIcon.compose.image
                             }
+                        } primaryAction: {
+                            stack.send(.composeButtonTapped)
                         }
                         .buttonStyle(.glassProminent)
                     }

@@ -83,6 +83,9 @@ package struct MainFeature {
                 case .compose(let draft):
                     state.compose = ComposeFeature.State(draft: draft)
                     return .none
+                case .drafts:
+                    state.compose = .drafts()
+                    return .none
                 case .open:
                     return .none
                 case .signOut:

@@ -36,6 +36,8 @@ package struct TabStack {
     package enum Action {
         case columnAvailabilityChanged(Bool)
         case composeButtonTapped
+        /// The compose button held: its drafts, as Twitter's.
+        case composeButtonLongPressed
         case delegate(ContentDelegate)
         case path(StackActionOf<TabStackPath>)
         case root(TabRoot.Action)
@@ -60,6 +62,9 @@ package struct TabStack {
 
             case .composeButtonTapped:
                 return .send(.delegate(.compose(Draft())))
+
+            case .composeButtonLongPressed:
+                return .send(.delegate(.drafts))
 
             case .delegate:
                 return .none

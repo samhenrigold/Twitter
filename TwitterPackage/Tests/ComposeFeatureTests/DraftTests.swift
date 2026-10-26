@@ -42,6 +42,17 @@ struct DraftTests {
     }
 
     @Test
+    func holdingTheComposeButtonOpensOnTheDrafts() {
+        @Shared(.drafts) var drafts
+        #expect(!ComposeFeature.State.drafts().isShowingDrafts)
+
+        $drafts.withLock {
+            _ = $0.append(SavedDraft(id: UUID(0), text: "Half a thought", savedAt: Date(timeIntervalSince1970: 0)))
+        }
+        #expect(ComposeFeature.State.drafts().isShowingDrafts)
+    }
+
+    @Test
     func cancellingAnEmptyTweetJustCloses() async {
         let store = TestStore(initialState: ComposeFeature.State(draft: Draft())) {
             ComposeFeature()

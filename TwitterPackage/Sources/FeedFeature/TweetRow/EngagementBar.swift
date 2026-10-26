@@ -2,6 +2,7 @@ import ComposableArchitecture
 import Models
 import SwiftUI
 import TweetEngagement
+import TwitterClient
 import TwitterUI
 
 /// Reply, repost, like and views left-aligned at the body inset with up to 35 pt between them; bookmark and share
@@ -50,9 +51,7 @@ private struct EngagementBarRow: View {
 
             BarSpacer()
 
-            LikeButton(isLiked: engagement.like.isOn, count: engagement.like.count) {
-                store.send(.likeButtonTapped(tweet))
-            }
+            HeldLikeButton(tweet: tweet, engagement: engagement, store: store)
 
             if showsViews, let views = tweet.viewCount {
                 BarSpacer()
@@ -100,9 +99,7 @@ struct DetailEngagementBar: View {
 
             RepostMenu(tweet: tweet, engagement: engagement, store: store)
 
-            LikeButton(isLiked: engagement.like.isOn, count: engagement.like.count) {
-                store.send(.likeButtonTapped(tweet))
-            }
+            HeldLikeButton(tweet: tweet, engagement: engagement, store: store)
 
             EngagementButton(
                 action: { store.send(.bookmarkButtonTapped(tweet)) },
@@ -117,38 +114,56 @@ struct DetailEngagementBar: View {
     }
 }
 
-/// Repost or quote, from the repost button.
+/// Retweet or quote, asked as Twitter's retweet sheet asks; held, who retweeted it. A button rather than a menu, so
+/// the hold can be its own: a menu takes the press for itself.
 private struct RepostMenu: View {
     let tweet: Tweet
     let engagement: Engagement
     let store: StoreOf<FeedFeature>
+    @State private var isAsking = false
 
     var body: some View {
-        Menu {
-            Button {
-                store.send(.repostButtonTapped(tweet))
-            } label: {
-                Label(engagement.repost.isOn ? "Undo Retweet" : "Retweet", twitterIcon: .repostStroke)
-            }
-
-            Button {
-                store.send(.quoteButtonTapped(tweet))
-            } label: {
-                Label("Quote Tweet", twitterIcon: .quoteTweet)
-            }
+        Button {
+            isAsking = true
         } label: {
             EngagementLabel(icon: engagement.repost.isOn ? .repost : .repostStroke, count: engagement.repost.count)
                 .foregroundStyle(engagement.repost.isOn ? .twitterRepost : .twitterSecondary)
         }
+        .buttonStyle(.plain)
+        .confirmationDialog("Retweet", isPresented: $isAsking, titleVisibility: .hidden) {
+            Button(engagement.repost.isOn ? "Undo Retweet" : "Retweet") {
+                store.send(.repostButtonTapped(tweet))
+            }
+
+            Button("Quote Tweet") {
+                store.send(.quoteButtonTapped(tweet))
+            }
+        }
+        .onHold("View Retweets") { store.send(.repostsButtonTapped(tweet)) }
         .accessibilityLabel(engagement.repost.isOn ? "Undo Retweet" : "Retweet")
         .accessibilityValue(engagement.repost.count.formatted())
+    }
+}
+
+/// Likes or unlikes the post; held, who liked it. Likes have been private since 2024, so that's only for the viewer's
+/// own posts, as on Twitter.
+private struct HeldLikeButton: View {
+    let tweet: Tweet
+    let engagement: Engagement
+    let store: StoreOf<FeedFeature>
+    @SharedReader(.viewer) private var viewer
+
+    var body: some View {
+        LikeButton(isLiked: engagement.like.isOn, count: engagement.like.count) {
+            store.send(.likeButtonTapped(tweet))
+        }
+        .onHold("View Likes", perform: tweet.author.id == viewer?.id ? { store.send(.likesButtonTapped(tweet)) } : nil)
     }
 }
 
 /// Shares the post; held, opens it in the official Twitter app instead, when that's installed.
 private struct ShareButton: View {
     let tweet: Tweet
-    @State private var opensInTwitter = 0
 
     var body: some View {
         ShareLink(item: tweet.url) {
@@ -156,18 +171,10 @@ private struct ShareButton: View {
                 .foregroundStyle(.twitterSecondary)
         }
         .buttonStyle(.plain)
-        // Ahead of the share sheet: a tap still shares, a hold doesn't.
-        .highPriorityGesture(LongPressGesture(minimumDuration: 0.5).onEnded { _ in openInTwitter() })
-        .sensoryFeedback(.impact(weight: .medium), trigger: opensInTwitter)
+        // The post's own link, opened only as a universal link: the Twitter app takes it, and without the app nothing
+        // opens rather than the web page.
+        .onHold("Open in Twitter") { UIApplication.shared.open(tweet.url, options: [.universalLinksOnly: true]) }
         .accessibilityLabel("Share")
-        .accessibilityAction(named: "Open in Twitter") { openInTwitter() }
-    }
-
-    /// The post's own link, opened only as a universal link: the Twitter app takes it, and without the app nothing
-    /// opens rather than the web page.
-    private func openInTwitter() {
-        opensInTwitter += 1
-        UIApplication.shared.open(tweet.url, options: [.universalLinksOnly: true])
     }
 }
 

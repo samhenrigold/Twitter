@@ -30,6 +30,16 @@ struct TabStackFeatureTests {
     }
 
     @Test
+    func holdingTheComposeButtonAsksForTheDrafts() async {
+        let store = TestStore(initialState: TabStack.State.home) {
+            TabStack()
+        }
+
+        await store.send(.composeButtonLongPressed)
+        await store.receive(\.delegate, .drafts)
+    }
+
+    @Test
     func reselectingTheTabReturnsToTheRoot() async {
         var state = TabStack.State.home
         state.path.append(Route.thread(Tweet.mocks[0]).pathState)

@@ -37,6 +37,13 @@ package struct ComposeFeature {
             self.draft = draft
         }
 
+        /// A new Tweet opened on its saved drafts, if there are any.
+        package static func drafts() -> Self {
+            var state = Self(draft: Draft())
+            state.isShowingDrafts = state.offersDrafts
+            return state
+        }
+
         /// The most a Tweet may weigh, by Twitter's count.
         static let characterLimit = TwitterTextConfiguration.current.maxWeightedTweetLength
         /// Twitter takes up to four photos, or one GIF or video on its own.

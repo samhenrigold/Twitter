@@ -24,6 +24,7 @@ package enum TwitterIcon: String, Sendable {
     case compose
     case copyStroke = "copy_stroke"
     case download
+    case drafts
     case externalLinkStroke = "external_link_stroke"
     /// Trending.
     case fire
@@ -118,7 +119,8 @@ package enum TwitterIcon: String, Sendable {
 
     /// For UIKit's bars.
     package var uiImage: UIImage? {
-        UIImage(named: rawValue, in: .module, with: nil)?.withRenderingMode(isTemplate ? .alwaysTemplate : .alwaysOriginal)
+        UIImage(named: rawValue, in: .module, with: nil)?.withRenderingMode(
+            isTemplate ? .alwaysTemplate : .alwaysOriginal)
     }
 
     /// Whether the glyph takes the foreground style; the gold badge keeps its own colors.

@@ -83,6 +83,10 @@ package struct RouteWindowFeature {
                 state.compose = ComposeFeature.State(draft: draft)
                 return .none
 
+            case .stack(.delegate(.drafts)):
+                state.compose = .drafts()
+                return .none
+
             case .stack(.delegate(.signOut)):
                 reportIssue("Secondary windows never show the viewer's own profile, so they can't sign out.")
                 return .none
