@@ -13,7 +13,7 @@ struct ReplyContext: View {
                 Avatar(user: tweet.author, size: 40)
 
                 Rectangle()
-                    .fill(.separator)
+                    .fill(.twitterDivider)
                     .frame(width: 2)
                     .frame(maxHeight: .infinity)
             }

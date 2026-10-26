@@ -263,11 +263,11 @@ package final class ColumnNavigationController: UINavigationController, UINaviga
         // Columns sit on a hatched void (tiled), in the light or dark hatch for the current appearance.
         let void = UIColor { traits in
             UIImage(named: "hash-background", in: .module, compatibleWith: traits).map(UIColor.init(patternImage:))
-                ?? .black
+                ?? UIColor(resource: .columnVoid)
         }
         view.backgroundColor = void
         columnHost.backgroundColor = void
-        browseBackdrop.backgroundColor = .black
+        browseBackdrop.backgroundColor = UIColor(resource: .columnVoid)
         browseBackdrop.alpha = 0
         browseBackdrop.isUserInteractionEnabled = false
         columnHost.addSubview(browseBackdrop)
@@ -1511,7 +1511,7 @@ package final class ColumnNavigationController: UINavigationController, UINaviga
         ColumnCardView.applyCorners(0, to: toView)
         toView.layoutIfNeeded()
         let toDimmer = UIView()
-        toDimmer.backgroundColor = .black
+        toDimmer.backgroundColor = UIColor(resource: .columnDimmer)
         toDimmer.isUserInteractionEnabled = false
         toDimmer.alpha = carriedDim
         if carriedDim > 0, let toHost = toView.superview {

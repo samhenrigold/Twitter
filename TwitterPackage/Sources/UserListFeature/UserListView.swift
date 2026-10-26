@@ -105,7 +105,7 @@ private struct FollowsYouLabel: View {
             .foregroundStyle(.twitterSecondary)
             .padding(.horizontal, 4)
             .padding(.vertical, 1)
-            .background(Color.twitterSecondary.opacity(0.12), in: .rect(cornerRadius: 3))
+            .background(.followsYouBadge, in: .rect(cornerRadius: 3))
     }
 }
 

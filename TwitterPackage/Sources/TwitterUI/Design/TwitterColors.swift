@@ -36,6 +36,14 @@ extension Color {
     package static let avatarHairline = Color(.avatarHairline)
     /// Recessed backgrounds (a gap in a timeline).
     package static let twitterGroove = Color(.twitterGroove)
+    /// Behind content: white, or black in dark mode.
+    package static let twitterBackground = Color(.twitterBackground)
+    /// A profile's banner area before (or without) a header photo.
+    package static let bannerPlaceholder = Color(.bannerPlaceholder)
+    /// The leading choice's bar in a finished poll.
+    package static let pollLeader = Color(.pollLeader)
+    /// Behind the 'Follows you' label.
+    package static let followsYouBadge = Color(.followsYouBadge)
 }
 
 extension ShapeStyle where Self == Color {
@@ -56,6 +64,10 @@ extension ShapeStyle where Self == Color {
     package static var mediaScrim: Color { Color.mediaScrim }
     package static var avatarHairline: Color { Color.avatarHairline }
     package static var twitterGroove: Color { Color.twitterGroove }
+    package static var twitterBackground: Color { Color.twitterBackground }
+    package static var bannerPlaceholder: Color { Color.bannerPlaceholder }
+    package static var pollLeader: Color { Color.pollLeader }
+    package static var followsYouBadge: Color { Color.followsYouBadge }
 }
 
 /// A full-bleed hairline in the divider colour, in place of the system `Divider`.

@@ -26,7 +26,7 @@ final class ColumnCardView: UIView {
         self.viewController = viewController
         super.init(frame: .zero)
         addSubview(content)
-        dimmer.backgroundColor = .black
+        dimmer.backgroundColor = UIColor(resource: .columnDimmer)
         dimmer.alpha = 0
         dimmer.isUserInteractionEnabled = false
         content.addSubview(dimmer)
@@ -84,7 +84,7 @@ final class ColumnCardView: UIView {
             withCenter: CGPoint(x: rect.minX + radii.bottom, y: rect.maxY - radii.bottom), radius: radii.bottom,
             startAngle: .pi / 2, endAngle: .pi, clockwise: true)
         path.close()
-        layer.shadowColor = UIColor.black.cgColor
+        layer.shadowColor = UIColor(resource: .columnShadow).cgColor
         layer.shadowRadius = 14
         layer.shadowOffset = .zero
         layer.shadowPath = path.cgPath
@@ -156,9 +156,9 @@ final class ColumnThrowawayIndicator: UIView {
         isUserInteractionEnabled = false
         alpha = 0
         for page in [back, front] {
-            page.borderColor = UIColor.white.cgColor
+            page.borderColor = UIColor(resource: .throwawayPageBorder).cgColor
             page.borderWidth = 2
-            page.backgroundColor = UIColor.black.withAlphaComponent(0.5).cgColor
+            page.backgroundColor = UIColor(resource: .throwawayPageFill).cgColor
             page.cornerRadius = 4
             page.cornerCurve = .continuous
             layer.addSublayer(page)

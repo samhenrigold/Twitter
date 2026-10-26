@@ -26,7 +26,7 @@ final class ProfilePreviewController: UIHostingController<LoadingProfilePreview>
     init(screenName: String) {
         super.init(rootView: LoadingProfilePreview(screenName: screenName))
         sizingOptions = .preferredContentSize
-        view.backgroundColor = .systemBackground
+        view.backgroundColor = UIColor(resource: .twitterBackground)
     }
 
     @available(*, unavailable)

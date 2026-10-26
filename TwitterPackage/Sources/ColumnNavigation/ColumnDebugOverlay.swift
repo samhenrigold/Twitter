@@ -24,21 +24,25 @@ final class ColumnDebugOverlay: UIView {
         setNeedsDisplay()
     }
 
+    /// A color per column, cycling.
+    private static let columnColors: [ColorResource] = [
+        .debugColumn0, .debugColumn1, .debugColumn2, .debugColumn3, .debugColumn4, .debugColumn5
+    ]
+
     override func draw(_ rect: CGRect) {
         guard let context = UIGraphicsGetCurrentContext() else { return }
 
         for region in reservedRegions(kind: .division, options: .includeInactive) {
-            (region.isActive ? UIColor.systemRed : UIColor.systemRed.withAlphaComponent(0.3)).withAlphaComponent(0.25)
-                .setFill()
+            UIColor(resource: .debugDivision).setFill()
             context.fill(region.frame)
         }
         for region in reservedRegions(kind: .occlusion, options: .includeInactive) {
-            UIColor.systemOrange.withAlphaComponent(region.isActive ? 0.35 : 0.12).setFill()
+            UIColor(resource: region.isActive ? .debugOcclusionActive : .debugOcclusionInactive).setFill()
             context.fill(region.frame)
         }
 
         for (index, frame) in columnFrames.enumerated() {
-            let color = UIColor(hue: CGFloat(index) * 0.17, saturation: 0.8, brightness: 0.85, alpha: 1)
+            let color = UIColor(resource: Self.columnColors[index % Self.columnColors.count])
             color.setStroke()
             let path = UIBezierPath(rect: frame.insetBy(dx: 1.5, dy: 1.5))
             path.lineWidth = 3
@@ -53,7 +57,7 @@ final class ColumnDebugOverlay: UIView {
         }
 
         // Stop points: where the top column's leading edge rests at each stop.
-        UIColor.systemPink.setFill()
+        UIColor(resource: .debugStopMarker).setFill()
         for x in stopMarkers {
             context.fill(CGRect(x: x - 1, y: bounds.maxY - 30, width: 2, height: 22))
         }

@@ -16,7 +16,7 @@ package final class ColumnDebugPanelViewController: UIViewController {
     package override func viewDidLoad() {
         super.viewDidLoad()
         title = "Columns"
-        view.backgroundColor = .systemGroupedBackground
+        view.backgroundColor = UIColor(resource: .debugPanelBackground)
         navigationItem.rightBarButtonItem = UIBarButtonItem(
             systemItem: .done,
             primaryAction: UIAction { [weak self] _ in

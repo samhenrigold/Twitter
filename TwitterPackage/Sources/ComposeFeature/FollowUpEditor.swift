@@ -11,7 +11,7 @@ struct FollowUpEditor: View {
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             Rectangle()
-                .fill(.separator)
+                .fill(.twitterDivider)
                 .frame(width: 2)
                 .frame(maxHeight: .infinity)
                 .padding(.horizontal, 7)

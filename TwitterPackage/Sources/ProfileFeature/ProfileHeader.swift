@@ -139,7 +139,7 @@ private struct Banner: View {
 
     var body: some View {
         Rectangle()
-            .fill(.tint.opacity(0.25))
+            .fill(.bannerPlaceholder)
             .overlay {
                 if let url {
                     RemoteImage(url: url, pointSize: 800) {
