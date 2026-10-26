@@ -46,7 +46,8 @@ package struct FeedView<Header: View>: View {
             store.send(.scrollStopped(topItemID: id))
         }
         .onChange(of: store.scrollToTopRequests) {
-            withAnimation(.snappy) { position.scrollTo(edge: .top) }
+            // Like the status bar's scroll to top: straight there, no bounce.
+            withAnimation(.smooth) { position.scrollTo(edge: .top) }
         }
         .onChange(of: store.restoringTopItemID, initial: true) {
             guard let topItemID = store.restoringTopItemID else { return }
@@ -58,7 +59,8 @@ package struct FeedView<Header: View>: View {
         .overlay(alignment: .top) {
             if store.newPostCount > 0 {
                 NewPostsButton(count: store.newPostCount) {
-                    withAnimation(.snappy) { position.scrollTo(edge: .top) }
+                    // Like the status bar's scroll to top: straight there, no bounce.
+                    withAnimation(.smooth) { position.scrollTo(edge: .top) }
                     store.send(.newPostsButtonTapped)
                 }
                 .padding(.top, 8)
