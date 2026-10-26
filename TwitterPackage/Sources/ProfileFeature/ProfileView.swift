@@ -58,6 +58,12 @@ package struct ProfileMenuItems: View {
     }
 
     package var body: some View {
+        Button("Lists", twitterIcon: .lists) {
+            store.send(.listsButtonTapped)
+        }
+
+        Divider()
+
         if store.isViewer {
             PostRowStylePicker()
 

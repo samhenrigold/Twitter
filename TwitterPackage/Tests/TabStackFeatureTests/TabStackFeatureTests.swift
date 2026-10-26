@@ -3,6 +3,7 @@ import Foundation
 import Testing
 
 @testable import FeedFeature
+@testable import ListsFeature
 @testable import Models
 @testable import Routing
 @testable import TabStackFeature
@@ -57,6 +58,28 @@ struct TabStackFeatureTests {
         await store.send(.root(.feeds(.delegate(.open(.thread(second)))))) {
             $0.path = StackState([Route.thread(second).pathState])
         }
+    }
+
+    @Test
+    func listsOpenAsAColumnAndAListOpensItsTimelineAfterIt() async {
+        let list = TwitterList.mocks[0]
+        let store = TestStore(initialState: TabStack.State.home) {
+            TabStack()
+        }
+        store.exhaustivity = .off
+
+        await store.send(.root(.feeds(.delegate(.open(.lists(userID: User.mock.id)))))) {
+            $0.path = StackState([.lists(ListsFeature.State(userID: User.mock.id))])
+        }
+        let listsID = store.state.path.ids[0]
+        await store.send(.path(.element(id: listsID, action: .lists(.listTapped(list)))))
+        await store.receive(\.path[id: listsID].lists.delegate)
+        #expect(store.state.path.count == 2)
+        guard case .list(let feed) = store.state.path.last else {
+            Issue.record("Expected a list column")
+            return
+        }
+        #expect(feed.source == .list(id: list.id, name: list.name))
     }
 
     @Test

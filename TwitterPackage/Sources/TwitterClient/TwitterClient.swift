@@ -18,6 +18,7 @@ package struct MediaUpload: Hashable, Sendable {
 package struct TwitterClient: Sendable {
     package var deleteTweet: @Sendable (_ id: String) async throws -> Void
     package var feed: @Sendable (_ source: FeedSource, _ cursor: String?) async throws -> FeedPage
+    package var lists: @Sendable (_ userID: String, _ cursor: String?) async throws -> ListPage
     package var post:
         @Sendable (
             _ text: String, _ replyTo: String?, _ quoteURL: URL?, _ media: [MediaUpload]
@@ -42,6 +43,7 @@ extension TwitterClient: TestDependencyKey {
         TwitterClient(
             deleteTweet: { _ in },
             feed: { source, cursor in .mock(source, cursor: cursor) },
+            lists: { _, _ in .mock },
             post: { _, _, _, _ in "preview" },
             restoreSession: { .mock },
             setBlocking: { _, _ in },

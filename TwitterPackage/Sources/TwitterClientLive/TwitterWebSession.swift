@@ -464,6 +464,19 @@ actor TwitterWebSession {
         return try await graphQLPage("SearchTimeline", variables: variables)
     }
 
+    func listTimeline(id: String, cursor: String?) async throws -> FeedPage {
+        var variables: [String: JSONValue] = ["listId": .string(id), "count": 20]
+        if let cursor { variables["cursor"] = .string(cursor) }
+        return try await graphQLPage("ListLatestTweetsTimeline", variables: variables)
+    }
+
+    /// The Lists someone made or follows, as their profile's Lists page shows them.
+    func lists(userID: String, cursor: String?) async throws -> ListPage {
+        var variables: [String: JSONValue] = ["userId": .string(userID), "count": 100]
+        if let cursor { variables["cursor"] = .string(cursor) }
+        return TimelineParser.listPage(from: try await graphQL("CombinedLists", variables: variables))
+    }
+
     func bookmarks(cursor: String?) async throws -> FeedPage {
         var variables: [String: JSONValue] = ["count": 20, "includePromotedContent": false]
         if let cursor { variables["cursor"] = .string(cursor) }

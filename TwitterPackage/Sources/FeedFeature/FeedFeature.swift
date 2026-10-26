@@ -83,7 +83,7 @@ package struct FeedFeature {
         var keepsReadingPosition: Bool {
             switch source {
             case .search, .searchMedia, .thread: false
-            case .bookmarks, .home, .notifications, .userLikes, .userMedia, .userPosts, .userReplies: true
+            case .bookmarks, .home, .list, .notifications, .userLikes, .userMedia, .userPosts, .userReplies: true
             }
         }
     }

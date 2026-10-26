@@ -1,6 +1,7 @@
 import ColumnNavigation
 import ComposableArchitecture
 import FeedFeature
+import ListsFeature
 import Models
 import ProfileFeature
 import Routing
@@ -303,6 +304,12 @@ private struct TabRootContentView: View {
         case .feeds(let store):
             FeedsView(store: store)
                 .navigationBarTitleDisplayMode(.inline)
+        case .list(let store):
+            FeedView(store: store)
+                .navigationTitle(store.source.title)
+                .navigationBarTitleDisplayMode(.inline)
+        case .lists(let store):
+            ListsView(store: store)
         case .profile(let store):
             ProfileView(store: store)
         case .quotes(let store):
@@ -327,6 +334,12 @@ private struct TabStackPathView: View {
 
     var body: some View {
         switch store.case {
+        case .list(let store):
+            FeedView(store: store)
+                .navigationTitle(store.source.title)
+                .navigationBarTitleDisplayMode(.inline)
+        case .lists(let store):
+            ListsView(store: store)
         case .profile(let store):
             ProfileView(store: store)
         case .quotes(let store):

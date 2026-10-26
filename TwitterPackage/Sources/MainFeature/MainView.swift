@@ -224,6 +224,7 @@ extension MainFeature.Tab {
                 ("--open-followers", .userList(.followers(userID: User.mock.id))),
                 ("--open-following", .userList(.following(userID: User.mock.id))),
                 ("--open-likes", .userList(.likers(tweetID: Tweet.mocks[0].id))),
+                ("--open-lists", .lists(userID: User.mock.id)),
                 ("--open-quotes", .quotes(tweetID: Tweet.mocks[0].id)),
                 ("--open-reposts", .userList(.reposters(tweetID: Tweet.mocks[0].id)))
             ]

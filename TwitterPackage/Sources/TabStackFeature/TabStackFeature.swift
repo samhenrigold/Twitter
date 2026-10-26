@@ -1,6 +1,7 @@
 import ComposableArchitecture
 import FeedFeature
 import Foundation
+import ListsFeature
 import Models
 import ProfileFeature
 import Routing
@@ -11,6 +12,9 @@ import WebFeature
 @Reducer
 package enum TabRoot {
     case feeds(FeedsFeature)
+    /// A List's timeline.
+    case list(FeedFeature)
+    case lists(ListsFeature)
     case profile(ProfileFeature)
     /// A post's quotes: a timeline of the posts quoting it.
     case quotes(FeedFeature)
@@ -24,6 +28,9 @@ extension TabRoot.State: Equatable {}
 
 @Reducer
 package enum TabStackPath {
+    /// A List's timeline.
+    case list(FeedFeature)
+    case lists(ListsFeature)
     case profile(ProfileFeature)
     /// A post's quotes: a timeline of the posts quoting it.
     case quotes(FeedFeature)
@@ -161,6 +168,8 @@ extension TabStackPath.State {
         case (.profile(let profile), .profileHandle(let screenName)): profile.shows(screenName: screenName)
         case (.quotes(let feed), .quotes(let tweetID)): feed.source == .quotes(of: tweetID)
         case (.userList(let list), .userList(let source)): list.source == source
+        case (.list(let feed), .list(let list)): feed.source == .list(id: list.id, name: list.name)
+        case (.lists(let lists), .lists(let userID)): lists.userID == userID
         case (.web(let web), .web(let url)): web.shows(url)
         default: false
         }
@@ -174,6 +183,8 @@ extension TabRoot.State {
         case .quotes(let feed): TabStackPath.State.quotes(feed).shows(route)
         case .thread(let feed): TabStackPath.State.thread(feed).shows(route)
         case .userList(let list): TabStackPath.State.userList(list).shows(route)
+        case .list(let feed): TabStackPath.State.list(feed).shows(route)
+        case .lists(let lists): TabStackPath.State.lists(lists).shows(route)
         case .web(let web): TabStackPath.State.web(web).shows(route)
         case .feeds, .search: false
         }
@@ -189,6 +200,10 @@ extension ProfileFeature.State {
 extension Route {
     package var pathState: TabStackPath.State {
         switch self {
+        case .list(let list):
+            .list(FeedFeature.State(source: .list(id: list.id, name: list.name)))
+        case .lists(let userID):
+            .lists(ListsFeature.State(userID: userID))
         case .profile(let user):
             .profile(ProfileFeature.State(user: user))
         case .profileHandle(let screenName):
@@ -217,7 +232,8 @@ extension Route {
 extension TabRoot.Action {
     package var contentDelegate: ContentDelegate? {
         switch self {
-        case .feeds(.delegate(let delegate)), .profile(.delegate(let delegate)), .quotes(.delegate(let delegate)),
+        case .feeds(.delegate(let delegate)), .list(.delegate(let delegate)), .lists(.delegate(let delegate)),
+            .profile(.delegate(let delegate)), .quotes(.delegate(let delegate)),
             .search(.delegate(let delegate)), .thread(.delegate(let delegate)), .userList(.delegate(let delegate)),
             .web(.delegate(let delegate)):
             delegate
@@ -230,8 +246,9 @@ extension TabRoot.Action {
 extension TabStackPath.Action {
     package var contentDelegate: ContentDelegate? {
         switch self {
-        case .profile(.delegate(let delegate)), .quotes(.delegate(let delegate)), .search(.delegate(let delegate)),
-            .thread(.delegate(let delegate)), .userList(.delegate(let delegate)), .web(.delegate(let delegate)):
+        case .list(.delegate(let delegate)), .lists(.delegate(let delegate)), .profile(.delegate(let delegate)),
+            .quotes(.delegate(let delegate)), .search(.delegate(let delegate)), .thread(.delegate(let delegate)),
+            .userList(.delegate(let delegate)), .web(.delegate(let delegate)):
             delegate
         default:
             nil
@@ -264,6 +281,8 @@ extension TabStack.State {
     package static func window(_ route: WindowRoute) -> Self {
         let root: TabRoot.State =
             switch route.route.pathState {
+            case .list(let list): .list(list)
+            case .lists(let lists): .lists(lists)
             case .profile(let profile): .profile(profile)
             case .quotes(let quotes): .quotes(quotes)
             case .search(let search): .search(search)

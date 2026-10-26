@@ -198,6 +198,8 @@ extension FeedTweet {
 package enum FeedSource: Hashable, Sendable {
     case bookmarks
     case home(following: Bool)
+    /// A List's timeline, newest first.
+    case list(id: String, name: String)
     case notifications(mentionsOnly: Bool)
     case search(query: String, latest: Bool)
     /// A search's photos and videos.

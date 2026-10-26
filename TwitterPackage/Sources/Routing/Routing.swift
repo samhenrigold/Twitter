@@ -2,6 +2,10 @@ import Foundation
 import Models
 
 package enum Route: Hashable, Sendable {
+    /// A List's timeline.
+    case list(TwitterList)
+    /// The Lists someone made or follows.
+    case lists(userID: String)
     case profile(User)
     case profileHandle(String)
     /// A post's quotes: posts, unlike the other lists of a post's activity, so they're a timeline of their own.
@@ -70,6 +74,8 @@ package enum Route: Hashable, Sendable {
     /// opening the same post twice brings its window forward instead of making a second one.
     package var window: WindowRoute {
         switch self {
+        case .list(let list): .list(list)
+        case .lists(let userID): .lists(userID: userID)
         case .profile(let user): .profile(screenName: user.screenName.lowercased())
         case .profileHandle(let screenName): .profile(screenName: screenName.lowercased())
         case .quotes(let tweetID): .quotes(tweetID: tweetID)
@@ -93,6 +99,8 @@ package enum Route: Hashable, Sendable {
 
 /// The value a standalone window is opened with and restored from.
 package enum WindowRoute: Codable, Hashable, Sendable {
+    case list(TwitterList)
+    case lists(userID: String)
     case profile(screenName: String)
     case quotes(tweetID: String)
     case search(String)
@@ -102,6 +110,8 @@ package enum WindowRoute: Codable, Hashable, Sendable {
 
     package var route: Route {
         switch self {
+        case .list(let list): .list(list)
+        case .lists(let userID): .lists(userID: userID)
         case .profile(let screenName): .profileHandle(screenName)
         case .quotes(let tweetID): .quotes(tweetID: tweetID)
         case .search(let query): .search(query)
@@ -152,6 +162,7 @@ extension FeedSource {
         switch self {
         case .bookmarks: "Bookmarks"
         case .home(let following): following ? "Following" : "For You"
+        case .list(_, let name): name
         case .notifications(let mentionsOnly): mentionsOnly ? "Mentions" : "All"
         case .search(_, let latest): latest ? "Latest" : "Top"
         case .searchMedia: "Media"

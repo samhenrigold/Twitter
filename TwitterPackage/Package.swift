@@ -13,6 +13,7 @@ let package = Package(
         .library(name: "ComposeFeature", targets: ["ComposeFeature"]),
         .library(name: "FeedFeature", targets: ["FeedFeature"]),
         .library(name: "ImagePipeline", targets: ["ImagePipeline"]),
+        .library(name: "ListsFeature", targets: ["ListsFeature"]),
         .library(name: "MainFeature", targets: ["MainFeature"]),
         .library(name: "Models", targets: ["Models"]),
         .library(name: "ProfileFeature", targets: ["ProfileFeature"]),
@@ -92,6 +93,15 @@ let package = Package(
             ]
         ),
         .target(
+            name: "ListsFeature",
+            dependencies: [
+                "Routing",
+                "TwitterClient",
+                "TwitterUI",
+                .product(name: "ComposableArchitecture", package: "swift-composable-architecture")
+            ]
+        ),
+        .target(
             name: "MainFeature",
             dependencies: [
                 "ComposeFeature",
@@ -140,6 +150,7 @@ let package = Package(
             name: "TabStackFeature",
             dependencies: [
                 "ColumnNavigation",
+                "ListsFeature",
                 "FeedFeature",
                 "ProfileFeature",
                 "SearchFeature",

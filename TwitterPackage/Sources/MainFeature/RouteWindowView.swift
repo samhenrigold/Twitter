@@ -52,6 +52,8 @@ package struct RouteWindowView: View {
 extension WindowRoute {
     fileprivate var windowTitle: LocalizedStringKey {
         switch self {
+        case .list(let list): "\(list.name)"
+        case .lists: "Lists"
         case .profile(let screenName): "@\(screenName)"
         case .quotes: "Quote Tweets"
         case .search(let query): "Search: \(query)"

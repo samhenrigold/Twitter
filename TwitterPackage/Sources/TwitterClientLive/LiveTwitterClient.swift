@@ -10,6 +10,7 @@ extension TwitterClient: DependencyKey {
         return TwitterClient(
             deleteTweet: { try await store.session().deleteTweet(id: $0) },
             feed: { source, cursor in try await store.session().feed(source, cursor: cursor) },
+            lists: { userID, cursor in try await store.session().lists(userID: userID, cursor: cursor) },
             post: { text, replyTo, quoteURL, media in
                 let session = try await store.session()
                 var mediaIDs: [String] = []
@@ -137,6 +138,8 @@ extension TwitterWebSession {
             try await bookmarks(cursor: cursor)
         case .home(let following):
             try await homeTimeline(following: following, cursor: cursor)
+        case .list(let id, _):
+            try await listTimeline(id: id, cursor: cursor)
         case .notifications(let mentionsOnly):
             try await notifications(type: mentionsOnly ? "Mentions" : "All", cursor: cursor)
         case .search(let query, let latest):
