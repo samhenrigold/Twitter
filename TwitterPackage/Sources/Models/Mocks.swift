@@ -227,6 +227,15 @@ extension Tweet {
         return tweet
     }()
 
+    /// A post in Japanese, to translate.
+    package static let mockJapanese: Tweet = {
+        var tweet = Tweet.mock(
+            id: "112", author: .mockAffiliate, text: "折りたたみのiPhoneで、タイムラインが二列になるのが最高です。",
+            secondsAgo: 1_800)
+        tweet.language = "ja"
+        return tweet
+    }()
+
     /// A reply in the timeline, whose thread opens with the conversation it replies to above it.
     package static let mockReply: Tweet = {
         var tweet = Tweet.mock(
@@ -323,7 +332,8 @@ extension FeedPage {
         items.insert(item(.mockLongPost), at: 1)
         items.insert(item(.mockPoll), at: 2)
         items.insert(item(.mockReply), at: 3)
-        items.insert(.tombstone(Tombstone(id: "tweet-109", text: "This Tweet was deleted by the Tweet author.")), at: 4)
+        items.insert(item(.mockJapanese), at: 4)
+        items.insert(.tombstone(Tombstone(id: "tweet-109", text: "This Tweet was deleted by the Tweet author.")), at: 5)
         items += [item(.mockCommunityNote), item(.mockRestricted), item(.mockQuotingDeleted), item(.mockFinalPoll)]
         // `--mock-media`: photos to open in the viewer, kept out of the default set so snapshots stay put.
         if ProcessInfo.processInfo.arguments.contains("--mock-media") {

@@ -32,6 +32,8 @@ package struct FeedFeature {
         /// under `--mock-twitter`, in tests), and so its loading is cancelled when the menu goes away.
         @Presents var alert: AlertState<Action.Alert>?
         @Presents var preview: FeedFeature.State?
+        /// The post whose text is up in the system's translation sheet.
+        var translating: Tweet?
         /// The item at the top of the screen when scrolling last stopped, to return to when the feed's view is rebuilt
         /// (folding or unfolding the device).
         var lastTopItemID: FeedItem.ID?
@@ -128,6 +130,8 @@ package struct FeedFeature {
         case showMoreResponse(ShowMoreCursor, Result<FeedPage, any Error>)
         case task
         case topItemRestored
+        case translateButtonTapped(Tweet)
+        case translationDismissed
         case tweetTapped(Tweet)
 
         package enum Alert: Equatable {
@@ -431,6 +435,14 @@ package struct FeedFeature {
                 }
                 guard !state.hasLoaded, !state.isLoading else { return .none }
                 return loadPage(state: &state, isRefresh: true)
+
+            case .translateButtonTapped(let tweet):
+                state.translating = tweet
+                return .none
+
+            case .translationDismissed:
+                state.translating = nil
+                return .none
 
             case .tweetTapped(let tweet):
                 guard state.source != .thread(tweetID: tweet.id) else { return .none }

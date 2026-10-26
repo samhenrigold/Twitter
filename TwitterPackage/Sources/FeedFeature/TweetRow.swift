@@ -658,6 +658,14 @@ package struct TweetMenu: View {
             Label("Copy Link", twitterIcon: .link)
         }
 
+        if tweet.isInAnotherLanguage() {
+            Button {
+                store.send(.translateButtonTapped(tweet))
+            } label: {
+                Label("Translate Tweet", twitterIcon: .globe)
+            }
+        }
+
         if !tweet.text.isEmpty {
             Button {
                 UIPasteboard.general.string = tweet.text

@@ -289,6 +289,7 @@ package enum TimelineParser {
         tweet.poll = poll(from: result["card"] as? JSON)
         tweet.replyRestriction = replyRestriction(raw: raw, result: result, legacy: legacy, author: author)
         tweet.createdAt = (legacy["created_at"] as? String).flatMap(parseDate)
+        tweet.language = legacy["lang"] as? String
         tweet.replyCount = int(legacy["reply_count"])
         tweet.repostCount = int(legacy["retweet_count"])
         tweet.likeCount = int(legacy["favorite_count"])

@@ -2,6 +2,7 @@ import ComposableArchitecture
 import Models
 import Routing
 import SwiftUI
+import Translation
 import TweetEngagement
 import TwitterClient
 import TwitterUI
@@ -228,6 +229,14 @@ private struct FeedInteractions: ViewModifier {
             }
             .task { store.send(.task) }
             .alert($store.scope(state: \.alert, action: \.alert))
+            .translationPresentation(
+                isPresented: Binding {
+                    store.translating != nil
+                } set: { isPresented in
+                    if !isPresented { store.send(.translationDismissed) }
+                },
+                text: store.translating?.text ?? ""
+            )
             .environment(
                 \.openURL,
                 OpenURLAction { url in
