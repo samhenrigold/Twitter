@@ -53,6 +53,7 @@ package enum TwitterIcon: String, Sendable {
     case repostStroke = "retweet_stroke"
     case search
     case searchStroke = "search_stroke"
+    case settings
     case shareStroke = "share_stroke"
     case signOut = "sign_out"
     /// The bird.

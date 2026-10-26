@@ -46,6 +46,15 @@ package struct ProfileView: View {
             }
         }
         .task { store.send(.task) }
+        .sheet(
+            isPresented: Binding {
+                store.isShowingSettings
+            } set: { isPresented in
+                if !isPresented { store.send(.settingsDismissed) }
+            }
+        ) {
+            SettingsView(store: store)
+        }
     }
 }
 
@@ -75,6 +84,10 @@ package struct ProfileMenuItems: View {
         Divider()
 
         if store.isViewer {
+            Button("Settings", twitterIcon: .settings) {
+                store.send(.settingsButtonTapped)
+            }
+
             PostRowStylePicker()
 
             Divider()

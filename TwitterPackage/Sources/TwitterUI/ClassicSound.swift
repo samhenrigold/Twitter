@@ -11,8 +11,12 @@ package enum ClassicSound: String, CaseIterable, Sendable {
     case psst2
     case tick
 
+    /// The Sounds setting, on unless turned off.
+    package static let settingKey = "playsSounds"
+
     package func play() {
-        guard let id = Self.soundIDs[self] else { return }
+        guard UserDefaults.standard.object(forKey: Self.settingKey) as? Bool ?? true, let id = Self.soundIDs[self]
+        else { return }
         AudioServicesPlaySystemSound(id)
     }
 

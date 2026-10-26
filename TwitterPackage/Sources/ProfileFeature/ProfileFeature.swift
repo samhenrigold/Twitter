@@ -16,6 +16,7 @@ package struct ProfileFeature {
         var isViewer = false
         /// The viewer asked to see the posts of someone they blocked.
         var isShowingBlockedPosts = false
+        var isShowingSettings = false
         package let screenName: String
         var user: User?
 
@@ -54,6 +55,8 @@ package struct ProfileFeature {
         case followersButtonTapped
         case followingButtonTapped
         case signOutButtonTapped
+        case settingsButtonTapped
+        case settingsDismissed
         case task
         case userResponse(Result<User, any Error>)
         case viewPostsButtonTapped
@@ -145,6 +148,14 @@ package struct ProfileFeature {
             case .listsButtonTapped:
                 guard let user = state.user else { return .none }
                 return .send(.delegate(.open(.lists(userID: user.id))))
+
+            case .settingsButtonTapped:
+                state.isShowingSettings = true
+                return .none
+
+            case .settingsDismissed:
+                state.isShowingSettings = false
+                return .none
 
             case .signOutButtonTapped:
                 return .send(.delegate(.signOut))

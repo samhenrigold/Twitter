@@ -222,6 +222,11 @@ extension MainFeature.Tab {
             if let index = arguments.firstIndex(of: "--search"), index + 1 < arguments.count {
                 store.send(.home(.root(.feeds(.delegate(.open(.search(arguments[index + 1])))))))
             }
+            // `--settings`: Settings, over your profile.
+            if arguments.contains("--settings") {
+                store.selectedTab = .profile
+                store.send(.profile(.root(.profile(.settingsButtonTapped))))
+            }
             // `--compose`: the New Tweet sheet.
             if arguments.contains("--compose") {
                 store.send(.home(.composeButtonTapped))
