@@ -77,6 +77,11 @@ package struct ThreadView: View {
             } catch {}
         }
         .feedInteractions(store: store)
+        .safeAreaBar(edge: .bottom) {
+            if let tweet = store.focusedTweet, tweet.viewerCanReply {
+                ReplyBar(tweet: tweet) { store.send(.replyButtonTapped(tweet)) }
+            }
+        }
         .toolbar {
             if store.focusedTweet != nil {
                 ColumnMenuToolbarItem("More", isInVerticalBar: columnBarItemsInVerticalBar) {
@@ -89,6 +94,35 @@ package struct ThreadView: View {
 
 extension ThreadView {
     nonisolated static let coordinateSpace = "thread"
+}
+
+/// Along the bottom of a post's page, as in Twitter: your avatar and "Tweet your reply", which opens the reply.
+private struct ReplyBar: View {
+    let tweet: Tweet
+    let reply: () -> Void
+    @SharedReader(.viewer) private var viewer
+
+    var body: some View {
+        Button(action: reply) {
+            HStack(spacing: 10) {
+                if let viewer {
+                    Avatar(user: viewer, size: 28)
+                }
+
+                Text("Tweet your reply")
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .glassEffect(.regular.interactive(), in: .capsule)
+        .padding(.horizontal, 12)
+        .padding(.bottom, 8)
+        .accessibilityLabel("Reply to @\(tweet.author.screenName)")
+    }
 }
 
 /// A thread's "…" menu: the focused post's.
