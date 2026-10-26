@@ -149,8 +149,8 @@ extension TwitterWebSession {
             try await homeTimeline(following: following, cursor: cursor)
         case .list(let id, _):
             try await listTimeline(id: id, cursor: cursor)
-        case .notifications(let mentionsOnly):
-            try await notifications(type: mentionsOnly ? "Mentions" : "All", cursor: cursor)
+        case .notifications(let filter):
+            try await notifications(type: filter.rawValue, cursor: cursor)
         case .search(let query, let latest):
             try await search(query, product: latest ? "Latest" : "Top", cursor: cursor)
         case .searchMedia(let query):

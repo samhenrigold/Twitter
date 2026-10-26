@@ -272,7 +272,8 @@ extension TabStack.State {
     package static var notifications: Self {
         Self(
             root: .feeds(
-                FeedsFeature.State(sources: [.notifications(mentionsOnly: false), .notifications(mentionsOnly: true)])
+                FeedsFeature.State(sources: [.notifications(.all), .notifications(.verified), .notifications(.mentions)]
+                )
             )
         )
     }

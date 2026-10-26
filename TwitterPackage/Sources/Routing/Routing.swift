@@ -163,7 +163,7 @@ extension FeedSource {
         case .bookmarks: "Bookmarks"
         case .home(let following): following ? "Following" : "For You"
         case .list(_, let name): name
-        case .notifications(let mentionsOnly): mentionsOnly ? "Mentions" : "All"
+        case .notifications(let filter): filter.rawValue
         case .search(_, let latest): latest ? "Latest" : "Top"
         case .searchMedia: "Media"
         case .thread: "Tweet"

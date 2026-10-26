@@ -166,7 +166,7 @@ extension FeedSource {
         case .bookmarks: "bookmarks"
         case .home(let following): following ? "home.following" : "home.forYou"
         case .list(let id, _): "list.\(id)"
-        case .notifications(let mentionsOnly): mentionsOnly ? "notifications.mentions" : "notifications.all"
+        case .notifications(let filter): "notifications.\(filter.rawValue.lowercased())"
         case .search, .searchMedia: nil
         case .thread(let tweetID): "thread.\(tweetID)"
         case .userLikes(let userID): "user.\(userID).likes"

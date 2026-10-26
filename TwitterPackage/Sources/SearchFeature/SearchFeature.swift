@@ -10,6 +10,8 @@ package struct SearchFeature {
     @ObservableState
     package struct State: Equatable {
         var query = ""
+        /// What was searched lately, newest first.
+        @Shared(.recentSearches) var recentSearches
         @Presents var results: SearchResults.State?
         var submittedQuery: String?
         /// What's trending, shown before anything's searched.
@@ -28,7 +30,9 @@ package struct SearchFeature {
 
     package enum Action: BindableAction {
         case binding(BindingAction<State>)
+        case clearRecentSearchesButtonTapped
         case delegate(ContentDelegate)
+        case recentSearchTapped(String)
         case results(PresentationAction<SearchResults.Action>)
         case resultsCleared(query: String)
         case searchSubmitted
@@ -55,6 +59,14 @@ package struct SearchFeature {
             case .binding, .delegate:
                 return .none
 
+            case .clearRecentSearchesButtonTapped:
+                state.$recentSearches.withLock { $0 = [] }
+                return .none
+
+            case .recentSearchTapped(let query):
+                state.query = query
+                return .send(.searchSubmitted)
+
             case .results(.presented(.delegate(let delegate))):
                 return .send(.delegate(delegate))
 
@@ -69,6 +81,11 @@ package struct SearchFeature {
                 let query = state.query.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !query.isEmpty, query != state.submittedQuery else { return .none }
                 state.submittedQuery = query
+                state.$recentSearches.withLock {
+                    $0.removeAll { $0.caseInsensitiveCompare(query) == .orderedSame }
+                    $0.insert(query, at: 0)
+                    $0 = Array($0.prefix(State.recentSearchLimit))
+                }
                 // Gone first, so the old results' effects are cancelled before the new ones start.
                 state.results = nil
                 return .send(.resultsCleared(query: query))
@@ -99,6 +116,17 @@ package struct SearchFeature {
         .ifLet(\.$results, action: \.results) {
             SearchResults()
         }
+    }
+}
+
+extension SearchFeature.State {
+    static let recentSearchLimit = 10
+}
+
+extension SharedKey where Self == FileStorageKey<[String]>.Default {
+    /// Searches made lately, kept on disk, newest first.
+    static var recentSearches: Self {
+        Self[.fileStorage(.applicationSupportDirectory.appending(component: "recent-searches.json")), default: []]
     }
 }
 

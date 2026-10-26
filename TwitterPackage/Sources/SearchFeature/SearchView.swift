@@ -17,8 +17,14 @@ package struct SearchView: View {
         Group {
             if let resultsStore = store.scope(state: \.results, action: \.results.presented) {
                 SearchResultsView(store: resultsStore)
-            } else if !store.trends.isEmpty {
-                TrendsList(trends: store.trends) { store.send(.trendTapped($0)) }
+            } else if !store.trends.isEmpty || !store.recentSearches.isEmpty {
+                TrendsList(
+                    recentSearches: store.recentSearches,
+                    trends: store.trends,
+                    searchAgain: { store.send(.recentSearchTapped($0)) },
+                    clearRecentSearches: { store.send(.clearRecentSearchesButtonTapped, animation: .snappy) },
+                    select: { store.send(.trendTapped($0)) }
+                )
             } else if !store.hasLoadedTrends {
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -67,16 +73,47 @@ private struct SearchResultsView: View {
     }
 }
 
-/// Explore's trends: each one's context over its name and how much it's being talked about.
+/// Explore before a search: recent searches to run again, then trends, each one's context over its name and how much
+/// it's being talked about.
 private struct TrendsList: View {
+    let recentSearches: [String]
     let trends: [Trend]
+    let searchAgain: (String) -> Void
+    let clearRecentSearches: () -> Void
     let select: (Trend) -> Void
 
     var body: some View {
         List {
-            Text("Trends for you")
-                .font(.title3.weight(.heavy))
+            if !recentSearches.isEmpty {
+                HStack {
+                    Text("Recent")
+                        .font(.title3.weight(.heavy))
+
+                    Spacer()
+
+                    Button("Clear", action: clearRecentSearches)
+                        .font(.subheadline)
+                        .buttonStyle(.borderless)
+                }
                 .listRowSeparator(.hidden)
+
+                ForEach(recentSearches, id: \.self) { query in
+                    Button {
+                        searchAgain(query)
+                    } label: {
+                        Label(query, twitterIcon: .searchStroke)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .contentShape(.rect)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            if !trends.isEmpty {
+                Text("Trends for you")
+                    .font(.title3.weight(.heavy))
+                    .listRowSeparator(.hidden)
+            }
 
             Section {
                 ForEach(trends) { trend in

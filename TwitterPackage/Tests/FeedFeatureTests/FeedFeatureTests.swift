@@ -336,6 +336,23 @@ struct FeedFeatureTests {
     }
 
     @Test
+    func unbookmarkingInBookmarksTakesThePostOut() async {
+        var tweet = Tweet.mocks[0]
+        tweet.isBookmarked = true
+        var state = FeedFeature.State(source: .bookmarks, items: [.tweet(FeedTweet(tweet: tweet))])
+        state.$engagements.withLock { $0.refresh(from: [tweet]) }
+        let store = TestStore(initialState: state) {
+            FeedFeature()
+        } withDependencies: {
+            $0[TweetEngagementSync.self].sync = { _, _ in }
+        }
+        store.exhaustivity = .off
+
+        await store.send(.bookmarkButtonTapped(tweet))
+        #expect(store.state.items.isEmpty)
+    }
+
+    @Test
     func showMoreFailureKeepsRow() async {
         struct Failure: Error {}
         let cursor = ShowMoreCursor(id: "cursor-showmore-1", cursor: "more")

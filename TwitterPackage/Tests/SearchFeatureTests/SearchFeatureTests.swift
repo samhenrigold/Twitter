@@ -27,6 +27,7 @@ struct SearchFeatureTests {
         }
         await store.send(.searchSubmitted) {
             $0.submittedQuery = "tca"
+            $0.$recentSearches.withLock { $0 = ["tca"] }
             $0.results = nil
         }
         await store.receive(\.resultsCleared) {
@@ -63,6 +64,8 @@ struct SearchFeatureTests {
         }
         await store.send(.trendTapped(trend)) {
             $0.query = "#WWDC"
+            // Shared, so it reads as changed from the tap that leads to it.
+            $0.$recentSearches.withLock { $0 = ["#WWDC"] }
         }
         await store.receive(\.searchSubmitted) {
             $0.submittedQuery = "#WWDC"
@@ -70,6 +73,22 @@ struct SearchFeatureTests {
         await store.receive(\.resultsCleared) {
             $0.results = SearchResults.State(query: "#WWDC")
         }
+    }
+
+    @Test
+    func searchesAreRememberedNewestFirstWithoutRepeats() async {
+        let store = TestStore(initialState: SearchFeature.State()) {
+            SearchFeature()
+        }
+        store.exhaustivity = .off
+
+        for query in ["swift", "tca", "Swift"] {
+            await store.send(.binding(.set(\.query, query)))
+            await store.send(.searchSubmitted)
+        }
+        #expect(store.state.recentSearches == ["Swift", "tca"])
+        await store.send(.clearRecentSearchesButtonTapped)
+        #expect(store.state.recentSearches.isEmpty)
     }
 
     @Test

@@ -255,7 +255,12 @@ package struct FeedFeature {
                 return .none
 
             case .bookmarkButtonTapped(let tweet):
-                return toggle(.bookmark, tweet: tweet, state: &state)
+                let effect = toggle(.bookmark, tweet: tweet, state: &state)
+                // Taken out of Bookmarks, it leaves the list, as in Twitter.
+                if state.source == .bookmarks, !state.engagements.engagement(for: tweet).bookmark.isOn {
+                    state.items.removeAll { $0.tweets.first?.id == tweet.id }
+                }
+                return effect
 
             case .topItemRestored:
                 state.restoringTopItemID = nil
