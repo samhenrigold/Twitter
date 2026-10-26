@@ -120,7 +120,7 @@ package struct ThreadMenuItems: View {
 
 extension FeedFeature.State {
     /// The post a thread is about.
-    package var focusedTweet: Tweet? {
+    fileprivate var focusedTweet: Tweet? {
         focusedItemID.flatMap { items[id: $0]?.tweets.first }
     }
 }

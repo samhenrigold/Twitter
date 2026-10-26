@@ -1,51 +1,10 @@
 import ComposableArchitecture
 import FeedFeature
 import Foundation
-import ListsFeature
 import Models
 import ProfileFeature
 import Routing
 import SearchFeature
-import UserListFeature
-import WebFeature
-
-@Reducer
-package enum TabRoot {
-    case feeds(FeedsFeature)
-    /// A List's timeline.
-    case list(FeedFeature)
-    case lists(ListsFeature)
-    case profile(ProfileFeature)
-    /// A post's quotes: a timeline of the posts quoting it.
-    case quotes(FeedFeature)
-    case search(SearchFeature)
-    case thread(FeedFeature)
-    case userList(UserListFeature)
-    case web(WebFeature)
-}
-
-extension TabRoot.State: Equatable {}
-
-@Reducer
-package enum TabStackPath {
-    /// A List's timeline.
-    case list(FeedFeature)
-    case lists(ListsFeature)
-    case profile(ProfileFeature)
-    /// A post's quotes: a timeline of the posts quoting it.
-    case quotes(FeedFeature)
-    case search(SearchFeature)
-    case thread(FeedFeature)
-    case userList(UserListFeature)
-    case web(WebFeature)
-}
-
-extension TabStackPath.State: Equatable {
-    /// Twitter for iPad's web panels are wide: a page needs more room than a timeline.
-    var isWide: Bool {
-        if case .web = self { true } else { false }
-    }
-}
 
 @Reducer
 package struct TabStack {
@@ -161,99 +120,6 @@ package struct TabStack {
         state.path.removeLast(state.path.count - nextIndex)
         state.path.append(route.pathState)
         return .none
-    }
-}
-
-extension TabStackPath.State {
-    /// Whether this column already shows what the route would open.
-    func shows(_ route: Route) -> Bool {
-        switch (self, route) {
-        case (.thread(let feed), .thread(let tweet)): feed.source == .thread(tweetID: tweet.id)
-        case (.thread(let feed), .threadID(let id)): feed.source == .thread(tweetID: id)
-        case (.profile(let profile), .profile(let user)): profile.shows(screenName: user.screenName)
-        case (.profile(let profile), .profileHandle(let screenName)): profile.shows(screenName: screenName)
-        case (.quotes(let feed), .quotes(let tweetID)): feed.source == .quotes(of: tweetID)
-        case (.userList(let list), .userList(let source)): list.source == source
-        case (.list(let feed), .list(let list)): feed.source == .list(id: list.id, name: list.name)
-        case (.lists(let lists), .lists(let userID)): lists.userID == userID
-        case (.web(let web), .web(let url)): web.shows(url)
-        default: false
-        }
-    }
-}
-
-extension TabRoot.State {
-    func shows(_ route: Route) -> Bool {
-        switch self {
-        case .profile(let profile): TabStackPath.State.profile(profile).shows(route)
-        case .quotes(let feed): TabStackPath.State.quotes(feed).shows(route)
-        case .thread(let feed): TabStackPath.State.thread(feed).shows(route)
-        case .userList(let list): TabStackPath.State.userList(list).shows(route)
-        case .list(let feed): TabStackPath.State.list(feed).shows(route)
-        case .lists(let lists): TabStackPath.State.lists(lists).shows(route)
-        case .web(let web): TabStackPath.State.web(web).shows(route)
-        case .feeds, .search: false
-        }
-    }
-}
-
-extension ProfileFeature.State {
-    fileprivate func shows(screenName other: String) -> Bool {
-        screenName.caseInsensitiveCompare(other) == .orderedSame
-    }
-}
-
-extension Route {
-    package var pathState: TabStackPath.State {
-        switch self {
-        case .list(let list):
-            .list(FeedFeature.State(source: .list(id: list.id, name: list.name)))
-        case .lists(let userID):
-            .lists(ListsFeature.State(userID: userID))
-        case .profile(let user):
-            .profile(ProfileFeature.State(user: user))
-        case .profileHandle(let screenName):
-            .profile(ProfileFeature.State(screenName: screenName))
-        case .quotes(let tweetID):
-            .quotes(FeedFeature.State(source: .quotes(of: tweetID)))
-        case .search(let query):
-            .search(SearchFeature.State(submitting: query))
-        case .thread(let tweet):
-            .thread(.thread(opening: tweet))
-        case .threadID(let id):
-            .thread(FeedFeature.State(source: .thread(tweetID: id)))
-        case .userList(let source):
-            .userList(UserListFeature.State(source: source))
-        case .web(let url):
-            .web(WebFeature.State(url: url))
-        }
-    }
-}
-
-extension TabRoot.Action {
-    package var contentDelegate: ContentDelegate? {
-        switch self {
-        case .feeds(.delegate(let delegate)), .list(.delegate(let delegate)), .lists(.delegate(let delegate)),
-            .profile(.delegate(let delegate)), .quotes(.delegate(let delegate)),
-            .search(.delegate(let delegate)), .thread(.delegate(let delegate)), .userList(.delegate(let delegate)),
-            .web(.delegate(let delegate)):
-            delegate
-        default:
-            nil
-        }
-    }
-}
-
-extension TabStackPath.Action {
-    package var contentDelegate: ContentDelegate? {
-        switch self {
-        case .list(.delegate(let delegate)), .lists(.delegate(let delegate)), .profile(.delegate(let delegate)),
-            .quotes(.delegate(let delegate)), .search(.delegate(let delegate)), .thread(.delegate(let delegate)),
-            .userList(.delegate(let delegate)), .web(.delegate(let delegate)):
-            delegate
-        default:
-            nil
-        }
     }
 }
 

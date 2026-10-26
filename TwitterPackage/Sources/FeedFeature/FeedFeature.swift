@@ -58,16 +58,6 @@ package struct FeedFeature {
             self.items = items
         }
 
-        /// A thread opened from one of its posts, which shows at once in its focused layout while the rest loads.
-        ///
-        /// A reply starts out joined to the conversation above it, as it will be once that arrives, so the focused
-        /// row's layout doesn't change under the reader when it does.
-        package static func thread(opening tweet: Tweet) -> Self {
-            var item = FeedTweet(tweet: tweet)
-            item.connectsAbove = !tweet.replyingTo.isEmpty
-            return Self(source: .thread(tweetID: tweet.id), items: [.tweet(item)])
-        }
-
         /// Where a thread's focused post is: the rows before it are the conversation above it, the rest its replies.
         /// The start when the post isn't (yet) in the thread.
         var focusedIndex: Int {
@@ -77,29 +67,6 @@ package struct FeedFeature {
         static let earlierConversationID = "cursor-top-conversation"
         /// How long a timeline stays fresh: coming back to its tab after longer than this loads what's new.
         static let staleInterval: TimeInterval = 120
-
-        /// In a thread, joins the conversation above the focused post into one line down to it, and offers whatever
-        /// Twitter left out above it (a long conversation sends only its last few posts, with a cursor for the rest).
-        mutating func showEarlierConversation(above topCursor: String?) {
-            guard let focusedID = focusedItemID, let focusedIndex = items.index(id: focusedID) else { return }
-            items.remove(id: FeedItem.showMore(ShowMoreCursor(id: Self.earlierConversationID, cursor: "")).id)
-            if let topCursor {
-                items.insert(
-                    .showMore(
-                        ShowMoreCursor(
-                            id: Self.earlierConversationID, cursor: topCursor, label: "Show earlier Tweets")),
-                    at: 0
-                )
-            }
-            let focusedIndexNow = items.index(id: focusedID) ?? focusedIndex
-            for index in items.indices.prefix(through: focusedIndexNow) {
-                guard case .tweet(var tweet) = items[index] else { continue }
-                let follows = index > 0 && { if case .tweet = items[index - 1] { true } else { false } }()
-                tweet.connectsAbove = follows
-                if index < focusedIndexNow { tweet.connectsBelow = true }
-                items[index] = .tweet(tweet)
-            }
-        }
 
         /// Timelines the reader works through keep their place; a thread or a search is read fresh each time.
         var keepsReadingPosition: Bool {
@@ -127,11 +94,11 @@ package struct FeedFeature {
         case likesButtonTapped(Tweet)
         case linkTapped(URL)
         case muteButtonTapped(User)
-        case pollChoiceTapped(tweetID: Tweet.ID, choice: Int)
-        case pollVoteFailed(tweetID: Tweet.ID, choice: Int)
         case muteFailed(userID: String, isMuting: Bool)
         case newPostsButtonTapped
         case pageResponse(Result<FeedPage, any Error>, isRefresh: Bool)
+        case pollChoiceTapped(tweetID: Tweet.ID, choice: Int)
+        case pollVoteFailed(tweetID: Tweet.ID, choice: Int)
         indirect case preview(PresentationAction<FeedFeature.Action>)
         /// A post's context menu preview went away. Identified by post, since the next menu's preview can appear
         /// before the last one's has gone.
@@ -140,19 +107,19 @@ package struct FeedFeature {
         case quoteButtonTapped(Tweet)
         case quotesButtonTapped(Tweet)
         case refreshPulled
-        /// Its tab's button tapped while it's showing: back to the top, and fetch what's new.
-        case reselected
-        /// Its tab was chosen: refreshes if it's been a while, or right away when Twitter has said there's something new
-        /// (`hasNew`, for Notifications' unread count).
-        case tabSelected(hasNew: Bool)
         case replyButtonTapped(Tweet)
         case repostButtonTapped(Tweet)
         case repostsButtonTapped(Tweet)
+        /// Its tab's button tapped while it's showing: back to the top, and fetch what's new.
+        case reselected
         case retryButtonTapped
         case rowAppeared(FeedItem.ID)
         case scrollStopped(topItemID: FeedItem.ID)
         case showMoreButtonTapped(ShowMoreCursor)
         case showMoreResponse(ShowMoreCursor, Result<FeedPage, any Error>)
+        /// Its tab was chosen: refreshes if it's been a while, or right away when Twitter has said there's something new
+        /// (`hasNew`, for Notifications' unread count).
+        case tabSelected(hasNew: Bool)
         case task
         case topItemRestored
         case translateButtonTapped(Tweet)
@@ -572,63 +539,5 @@ package struct FeedFeature {
     private func toggle(_ interaction: Interaction, tweet: Tweet, state: inout State) -> EffectOf<Self> {
         state.$engagements.withLock { $0.toggle(interaction, for: tweet) }
         return .run { _ in await engagementSync.sync(tweet.id, interaction) }
-    }
-}
-
-extension FeedItem {
-    package var tweets: [Tweet] {
-        switch self {
-        case .notification(let notification):
-            notification.tweet.map { [$0] } ?? []
-        case .tweet(let feedTweet):
-            [feedTweet.tweet] + feedTweet.tweet.quoted
-        case .tombstone, .showMore:
-            []
-        }
-    }
-
-    /// Applies `update` to every copy of a user in this item (author, quoted author, reposter).
-    mutating func updateUser(id: String, _ update: (inout User) -> Void) {
-        guard case .tweet(var feedTweet) = self else { return }
-        if feedTweet.tweet.author.id == id { update(&feedTweet.tweet.author) }
-        for index in feedTweet.tweet.quoted.indices where feedTweet.tweet.quoted[index].author.id == id {
-            update(&feedTweet.tweet.quoted[index].author)
-        }
-        if feedTweet.repostedBy?.id == id { update(&feedTweet.repostedBy!) }
-        self = .tweet(feedTweet)
-    }
-}
-
-extension FeedFeature.State {
-    mutating func setBlocking(_ isBlocking: Bool, userID: String) {
-        for id in items.ids {
-            items[id: id]?.updateUser(id: userID) { $0.isBlocking = isBlocking }
-        }
-    }
-
-    /// The poll of post `tweetID`, wherever it shows (or is quoted).
-    func poll(of tweetID: Tweet.ID) -> Poll? {
-        for item in items {
-            if let poll = item.tweets.first(where: { $0.id == tweetID })?.poll { return poll }
-        }
-        return nil
-    }
-
-    mutating func updatePoll(of tweetID: Tweet.ID, _ update: (inout Poll) -> Void) {
-        for id in items.ids {
-            guard case .tweet(var feedTweet) = items[id: id] else { continue }
-            if feedTweet.tweet.id == tweetID, feedTweet.tweet.poll != nil { update(&feedTweet.tweet.poll!) }
-            for index in feedTweet.tweet.quoted.indices
-            where feedTweet.tweet.quoted[index].id == tweetID && feedTweet.tweet.quoted[index].poll != nil {
-                update(&feedTweet.tweet.quoted[index].poll!)
-            }
-            items[id: id] = .tweet(feedTweet)
-        }
-    }
-
-    mutating func setMuting(_ isMuting: Bool, userID: String) {
-        for id in items.ids {
-            items[id: id]?.updateUser(id: userID) { $0.isMuting = isMuting }
-        }
     }
 }

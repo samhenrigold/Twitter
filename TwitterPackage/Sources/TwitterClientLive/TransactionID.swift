@@ -68,7 +68,7 @@ struct TransactionIDGenerator: Sendable {
         return Data(out).base64EncodedString().replacingOccurrences(of: "=", with: "")
     }
 
-    // MARK: - Animation key
+    // MARK: Animation key
 
     private static func animate(_ frames: [Int], targetTime: Double) -> String {
         let values = frames.map(Double.init)
@@ -157,7 +157,7 @@ struct TransactionIDGenerator: Sendable {
     /// JavaScript `Math.round` (rounds .5 toward +∞).
     private static func jsRound(_ x: Double) -> Double { floor(x + 0.5) }
 
-    // MARK: - HTML parsing
+    // MARK: HTML parsing
 
     /// The `d` attribute of the second `<path>` in each `loading-x-anim-*` SVG, in document order.
     private static func frames(in html: String) -> [String] {
