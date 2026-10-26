@@ -82,7 +82,7 @@ package struct FeedFeature {
         /// Timelines the reader works through keep their place; a thread or a search is read fresh each time.
         var keepsReadingPosition: Bool {
             switch source {
-            case .search, .thread: false
+            case .search, .searchMedia, .thread: false
             case .bookmarks, .home, .notifications, .userLikes, .userMedia, .userPosts, .userReplies: true
             }
         }
@@ -170,7 +170,7 @@ package struct FeedFeature {
                     removed[index] = item
                     state.items.remove(at: index)
                 }
-                return .run { [removed] _ in
+                return .run { _ in
                     try await client.deleteTweet(tweetID)
                 } catch: { [removed] error, send in
                     await send(.deleteFailed(removed: removed, message: error.localizedDescription))

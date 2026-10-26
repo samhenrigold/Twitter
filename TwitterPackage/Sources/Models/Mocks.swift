@@ -298,6 +298,10 @@ extension FeedPage {
                 topCursor: ancestors.isEmpty ? nil : mockEarlierCursor
             )
         }
+        if case .searchMedia = source {
+            // A search's photos and videos: only posts with media.
+            return FeedPage(items: [item(.mockPhotos)], bottomCursor: nil, topCursor: nil)
+        }
         if case .search(let query, _) = source, query.hasPrefix(FeedSource.quotesQueryPrefix) {
             // Quotes of the post the search names, as a post's Quotes list shows them.
             let quotedID = String(query.dropFirst(FeedSource.quotesQueryPrefix.count))
@@ -384,6 +388,11 @@ extension UserPage {
         switch source {
         case .followers, .following: break
         case .likers, .reposters: everyone = Array(everyone.prefix(8))
+        case .searchPeople(let query):
+            // Whoever's name or handle has the query in it, as a people search finds them.
+            everyone = everyone.filter {
+                $0.name.localizedCaseInsensitiveContains(query) || $0.screenName.localizedCaseInsensitiveContains(query)
+            }
         }
         let start = cursor.flatMap(Int.init) ?? 0
         let end = min(start + mockPageSize, everyone.count)

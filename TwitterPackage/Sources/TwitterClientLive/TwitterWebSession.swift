@@ -454,9 +454,10 @@ actor TwitterWebSession {
             blocked ? "/i/api/1.1/blocks/create.json" : "/i/api/1.1/blocks/destroy.json", form: ["user_id": userID])
     }
 
-    func search(_ query: String, latest: Bool, cursor: String?) async throws -> FeedPage {
+    /// `product` is the web client's tab: Top, Latest or Media (People lists accounts; see `users(_:cursor:)`).
+    func search(_ query: String, product: String, cursor: String?) async throws -> FeedPage {
         var variables: [String: JSONValue] = [
-            "rawQuery": .string(query), "count": 20, "querySource": "typed_query", "product": latest ? "Latest" : "Top",
+            "rawQuery": .string(query), "count": 20, "querySource": "typed_query", "product": .string(product),
             "withGrokTranslatedBio": false
         ]
         if let cursor { variables["cursor"] = .string(cursor) }

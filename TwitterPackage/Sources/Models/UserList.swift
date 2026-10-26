@@ -8,6 +8,8 @@ package enum UserListSource: Hashable, Codable, Sendable {
     /// Who liked a post. Twitter made likes private in 2024, so this only lists anyone for the viewer's own posts.
     case likers(tweetID: String)
     case reposters(tweetID: String)
+    /// Accounts matching a search.
+    case searchPeople(query: String)
 }
 
 /// One page of a user list, and the cursor for the next.

@@ -139,7 +139,9 @@ extension TwitterWebSession {
         case .notifications(let mentionsOnly):
             try await notifications(type: mentionsOnly ? "Mentions" : "All", cursor: cursor)
         case .search(let query, let latest):
-            try await search(query, latest: latest, cursor: cursor)
+            try await search(query, product: latest ? "Latest" : "Top", cursor: cursor)
+        case .searchMedia(let query):
+            try await search(query, product: "Media", cursor: cursor)
         case .thread(let tweetID):
             try await tweetDetail(id: tweetID, cursor: cursor)
         case .userLikes(let userID):
@@ -171,6 +173,13 @@ extension TwitterWebSession {
             variables["tweetId"] = .string(tweetID)
             variables["enableRanking"] = false
             variables["includePromotedContent"] = true
+        case .searchPeople(let query):
+            // The web client's People tab: a search whose timeline holds accounts.
+            operation = "SearchTimeline"
+            variables["rawQuery"] = .string(query)
+            variables["querySource"] = "typed_query"
+            variables["product"] = "People"
+            variables["withGrokTranslatedBio"] = false
         }
         if let cursor { variables["cursor"] = .string(cursor) }
         return TimelineParser.userPage(from: try await graphQL(operation, variables: variables))

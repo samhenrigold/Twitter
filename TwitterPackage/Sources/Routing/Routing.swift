@@ -136,6 +136,7 @@ extension UserListSource {
         case .following: "Following"
         case .likers: "Likes"
         case .reposters: "Retweets"
+        case .searchPeople: "People"
         }
     }
 }
@@ -153,6 +154,7 @@ extension FeedSource {
         case .home(let following): following ? "Following" : "For You"
         case .notifications(let mentionsOnly): mentionsOnly ? "Mentions" : "All"
         case .search(_, let latest): latest ? "Latest" : "Top"
+        case .searchMedia: "Media"
         case .thread: "Tweet"
         case .userLikes: "Likes"
         case .userMedia: "Media"

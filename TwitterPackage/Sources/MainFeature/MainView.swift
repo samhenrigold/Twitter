@@ -174,6 +174,10 @@ extension MainFeature.Tab {
             if arguments.contains("--open-thread"), let tweet = Tweet.mocks.first {
                 store.send(.home(.root(.feeds(.delegate(.open(.thread(tweet)))))))
             }
+            // `--search <query>`: that search's results, opened from the home timeline.
+            if let index = arguments.firstIndex(of: "--search"), index + 1 < arguments.count {
+                store.send(.home(.root(.feeds(.delegate(.open(.search(arguments[index + 1])))))))
+            }
             // `--compose`: the New Tweet sheet.
             if arguments.contains("--compose") {
                 store.send(.home(.composeButtonTapped))

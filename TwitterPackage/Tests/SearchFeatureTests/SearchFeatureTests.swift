@@ -30,8 +30,21 @@ struct SearchFeatureTests {
             $0.results = nil
         }
         await store.receive(\.resultsCleared) {
-            $0.results = SearchFeature.State.results(for: "tca")
+            $0.results = SearchResults.State(query: "tca")
         }
+    }
+
+    @Test
+    func resultsOfferTopLatestPeopleAndMedia() {
+        let results = SearchResults.State(query: "swift")
+        #expect(
+            results.feeds.ids.elements == [
+                .search(query: "swift", latest: false), .search(query: "swift", latest: true),
+                .searchMedia(query: "swift")
+            ]
+        )
+        #expect(results.people.source == .searchPeople(query: "swift"))
+        #expect(SearchResults.Tab.allCases.compactMap { $0.source(for: "swift") } == results.feeds.ids.elements)
     }
 
     @Test

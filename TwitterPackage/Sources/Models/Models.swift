@@ -200,6 +200,8 @@ package enum FeedSource: Hashable, Sendable {
     case home(following: Bool)
     case notifications(mentionsOnly: Bool)
     case search(query: String, latest: Bool)
+    /// A search's photos and videos.
+    case searchMedia(query: String)
     case thread(tweetID: String)
     case userLikes(userID: String)
     case userMedia(userID: String)
