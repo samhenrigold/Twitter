@@ -60,10 +60,18 @@ extension FeedPage {
                     boldRanges: [0..<users[1].name.unicodeScalars.count], users: [users[1]],
                     date: .now.addingTimeInterval(-7200))
             ]
+            // Enough between them, the newer ones unread too, that some are only seen once scrolled to.
+            let followers = User.mockCrowd.dropFirst(3).prefix(16).enumerated().map { index, user in
+                TwitterNotification(
+                    id: "n-follow-\(user.id)", icon: "person_icon", message: "\(user.name) followed you",
+                    boldRanges: [0..<user.name.unicodeScalars.count], users: [user],
+                    date: .now.addingTimeInterval(-600 - Double(index) * 400), isUnread: index < 8)
+            }
             var mention = FeedTweet(id: Tweet.mockReply.id, tweet: .mockReply)
             mention.isUnread = true
             return FeedPage(
-                items: [.tweet(mention)] + notifications.map(FeedItem.notification), bottomCursor: nil,
+                items: [.tweet(mention)] + ([notifications[0]] + followers + [notifications[1]]).map(FeedItem.notification),
+                bottomCursor: nil,
                 topCursor: "mock-top")
         }
         if case .searchMedia = source {

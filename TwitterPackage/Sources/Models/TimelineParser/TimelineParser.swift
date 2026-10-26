@@ -67,7 +67,7 @@ package enum TimelineParser {
                     if let unreadAbove, let sortIndex = entry["sortIndex"].map({ "\($0)" }),
                         isSortIndex(sortIndex, above: unreadAbove)
                     {
-                        item.markUnread()
+                        item.isUnread = true
                     }
                     append(item)
                 }

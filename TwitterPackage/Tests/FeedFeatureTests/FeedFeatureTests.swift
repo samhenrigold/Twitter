@@ -62,31 +62,6 @@ struct FeedFeatureTests {
     }
 
     @Test
-    func loadingNotificationsMarksThemRead() async {
-        let page = FeedPage(items: [], bottomCursor: nil, topCursor: "top-cursor")
-        let readCursor = LockIsolated<String?>(nil)
-        var state = FeedFeature.State(source: .notifications(.all))
-        state.hasLoaded = true
-        let store = TestStore(initialState: state) {
-            FeedFeature()
-        } withDependencies: {
-            $0.date.now = Date(timeIntervalSince1970: 0)
-            $0[TwitterClient.self].feed = { _, _ in page }
-            $0[TwitterClient.self].markNotificationsRead = { readCursor.setValue($0) }
-            $0[TimelineCache.self].save = { _, _, _ in }
-        }
-
-        await store.send(.refreshPulled) {
-            $0.isLoading = true
-        }
-        await store.receive(\.pageResponse) {
-            $0.isLoading = false
-            $0.lastRefreshed = Date(timeIntervalSince1970: 0)
-        }
-        #expect(readCursor.value == "top-cursor")
-    }
-
-    @Test
     func rowNearBottomLoadsNextPage() async {
         let first = Tweet.mocks[0]
         let second = Tweet.mocks[1]

@@ -37,9 +37,19 @@ package struct FeedView<Header: View>: View {
         } action: { _, isAtTop in
             store.send(.isAtTopChanged(isAtTop))
         }
-        .onScrollPhaseChange { _, phase in
+        .onScrollPhaseChange { oldPhase, phase in
+            if store.marksViewed, oldPhase.isScrolling != phase.isScrolling {
+                store.send(.scrollPhaseChanged(isScrolling: phase.isScrolling))
+            }
             guard phase == .idle, let id = position.viewID(type: FeedItem.ID.self) else { return }
             store.send(.scrollStopped(topItemID: id))
+        }
+        // Notifications are only seen while they're on screen.
+        .onAppear {
+            if store.marksViewed { store.send(.visibilityChanged(isOnScreen: true)) }
+        }
+        .onDisappear {
+            if store.marksViewed { store.send(.visibilityChanged(isOnScreen: false)) }
         }
         .onChange(of: store.scrollToTopRequests) {
             // Like the status bar's scroll to top: straight there, no bounce.

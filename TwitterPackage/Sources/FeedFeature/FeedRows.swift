@@ -20,6 +20,7 @@ struct FeedRows: View {
                 store: store
             )
             .onAppear { store.send(.rowAppeared(item.id)) }
+            .reportsViewed(item.id, store: store)
         }
     }
 }

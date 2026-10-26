@@ -41,6 +41,17 @@ package struct FeedFeature {
         var lastTopItemID: FeedItem.ID?
         /// Where to put the reader back once cached items are on screen; cleared once the view has scrolled there.
         var restoringTopItemID: FeedItem.ID?
+        /// In Notifications, the newest page's top cursor: what the reader has seen up to, sent to Twitter once they've
+        /// seen something.
+        var topCursor: String?
+        /// The last top cursor Twitter was told the reader had seen, so the same one isn't sent twice.
+        var lastSeenCursor: String?
+        /// Whether the feed is on screen: in the tab showing, and not covered by what's pushed over it.
+        var isOnScreen = false
+        /// Whether the timeline is being dragged, is decelerating, or is animating to somewhere.
+        var isScrolling = false
+        /// The rows that show enough of themselves to count as seen (see ``MarkAsViewed``).
+        var viewedItemIDs: Set<FeedItem.ID> = []
         /// Counts requests to scroll back to the top (the tab tapped again); the view scrolls on each change.
         var scrollToTopRequests = 0
         package let source: FeedSource
@@ -68,6 +79,9 @@ package struct FeedFeature {
         /// How long a timeline stays fresh: coming back to its tab after longer than this loads what's new.
         static let staleInterval: TimeInterval = 120
 
+        /// Whether the rows the reader sees are marked read, as Twitter marks notifications.
+        var marksViewed: Bool { source == .notifications(.all) }
+
         /// Timelines the reader works through keep their place; a thread or a search is read fresh each time.
         var keepsReadingPosition: Bool {
             switch source {
@@ -89,6 +103,8 @@ package struct FeedFeature {
         /// Twitter refused to delete a post: the rows taken out for it go back where they were.
         case deleteFailed(removed: [Int: FeedItem], message: String)
         case isAtTopChanged(Bool)
+        /// Twitter couldn't be told what the reader has seen: it's told again with the next cursor seen.
+        case lastSeenCursorFailed(String)
         case likeButtonTapped(Tweet)
         /// Who liked a post. Only the viewer's own posts list anyone, since Twitter made likes private.
         case likesButtonTapped(Tweet)
@@ -114,6 +130,10 @@ package struct FeedFeature {
         case reselected
         case retryButtonTapped
         case rowAppeared(FeedItem.ID)
+        /// A row started or stopped showing enough of itself to count as seen.
+        case rowViewedChanged(FeedItem.ID, isViewed: Bool)
+        /// The timeline started being dragged (or decelerating, or animating), or came to rest.
+        case scrollPhaseChanged(isScrolling: Bool)
         case scrollStopped(topItemID: FeedItem.ID)
         case showMoreButtonTapped(ShowMoreCursor)
         case showMoreResponse(ShowMoreCursor, Result<FeedPage, any Error>)
@@ -125,6 +145,10 @@ package struct FeedFeature {
         case translateButtonTapped(Tweet)
         case translationDismissed
         case tweetTapped(Tweet)
+        /// The timeline has sat still on its rows long enough for them to count as seen.
+        case viewingSettled
+        /// The feed came on screen, or went off it.
+        case visibilityChanged(isOnScreen: Bool)
 
         package enum Alert: Equatable {
             case confirmDelete(tweetID: Tweet.ID)
@@ -132,6 +156,7 @@ package struct FeedFeature {
     }
 
     enum CancelID: Hashable {
+        case markViewed(FeedSource)
         case page(FeedSource)
         case saveTopItem(FeedSource)
     }
@@ -308,6 +333,7 @@ package struct FeedFeature {
                 state.bottomCursor = merge.bottomCursor
                 state.cachedBottomCursor = nil
                 state.newPostCount = state.isAtTop ? 0 : state.newPostCount + merge.newCount
+                if state.marksViewed { state.topCursor = page.topCursor }
                 state.$engagements.withLock { $0.refresh(from: page.items.lazy.flatMap(\.tweets)) }
                 let merged = FeedPage(cachedItems: Array(merge.items), bottomCursor: state.bottomCursor)
                 return .merge(
@@ -316,7 +342,8 @@ package struct FeedFeature {
                             try await timelineCache.save(source, merged, true)
                         }
                     },
-                    markRead(page, source: state.source)
+                    // Fresh rows where seen ones were: seen again once the timeline sits still on them.
+                    scheduleMarkViewed(state: state)
                 )
 
             case .pageResponse(.success(let page), let isRefresh):
@@ -325,6 +352,7 @@ package struct FeedFeature {
                 state.errorMessage = nil
                 if isRefresh {
                     state.lastRefreshed = now
+                    if state.marksViewed { state.topCursor = page.topCursor }
                     state.items = IdentifiedArray(page.items, uniquingIDsWith: { first, _ in first })
                     state.showEarlierConversation(above: page.topCursor)
                 } else {
@@ -403,6 +431,37 @@ package struct FeedFeature {
                     state.errorMessage == nil
                 else { return prefetch }
                 return .merge(prefetch, loadPage(state: &state, isRefresh: false))
+
+            case .lastSeenCursorFailed(let cursor):
+                if state.lastSeenCursor == cursor { state.lastSeenCursor = nil }
+                return .none
+
+            case .rowViewedChanged(let id, let isViewed):
+                guard state.marksViewed else { return .none }
+                if isViewed {
+                    guard state.viewedItemIDs.insert(id).inserted else { return .none }
+                    return scheduleMarkViewed(state: state)
+                }
+                state.viewedItemIDs.remove(id)
+                return .none
+
+            case .scrollPhaseChanged(let isScrolling):
+                guard state.marksViewed, state.isScrolling != isScrolling else { return .none }
+                state.isScrolling = isScrolling
+                // A drag puts off what was about to be marked; coming to rest marks what's seen at once.
+                return isScrolling ? .cancel(id: CancelID.markViewed(state.source)) : markViewed(state: &state)
+
+            case .viewingSettled:
+                return markViewed(state: &state)
+
+            case .visibilityChanged(let isOnScreen):
+                guard state.marksViewed else { return .none }
+                state.isOnScreen = isOnScreen
+                guard isOnScreen else {
+                    state.viewedItemIDs = []
+                    return .cancel(id: CancelID.markViewed(state.source))
+                }
+                return scheduleMarkViewed(state: state)
 
             case .isAtTopChanged(let isAtTop):
                 state.isAtTop = isAtTop
@@ -484,13 +543,36 @@ package struct FeedFeature {
         }
     }
 
-    /// Notifications on screen are read: Twitter is told, as its own apps do on showing them, which clears the unread
-    /// count. Those marked unread stay marked until the next refresh.
-    private func markRead(_ page: FeedPage, source: FeedSource) -> EffectOf<Self> {
-        guard source == .notifications(.all), let cursor = page.topCursor else { return .none }
-        return .run { _ in
-            try await client.markNotificationsRead(cursor)
+    /// Marks what's seen once the timeline sits still on it, as Twitter's `TFNMarkAsViewedHelper` does on a row
+    /// coming on screen: put off by a drag, and not while the feed is off screen.
+    private func scheduleMarkViewed(state: State) -> EffectOf<Self> {
+        guard state.marksViewed, state.isOnScreen, !state.isScrolling else { return .none }
+        return .run { send in
+            try await clock.sleep(for: MarkAsViewed.settleDelay)
+            await send(.viewingSettled)
         }
+        .cancellable(id: CancelID.markViewed(state.source), cancelInFlight: true)
+    }
+
+    /// The rows seen are read: their blue goes, and Twitter is told the reader has seen up to the top of the
+    /// timeline, which clears the unread count. Nothing seen, nothing sent.
+    private func markViewed(state: inout State) -> EffectOf<Self> {
+        let cancelPending = EffectOf<Self>.cancel(id: CancelID.markViewed(state.source))
+        let viewed = state.viewedItemIDs.filter { state.items[id: $0] != nil }
+        guard state.marksViewed, state.isOnScreen, !viewed.isEmpty else { return cancelPending }
+        for id in viewed where state.items[id: id]?.isUnread == true {
+            state.items[id: id]?.isUnread = false
+        }
+        guard let cursor = state.topCursor, cursor != state.lastSeenCursor else { return cancelPending }
+        state.lastSeenCursor = cursor
+        return .merge(
+            cancelPending,
+            .run { _ in
+                try await client.markNotificationsRead(cursor)
+            } catch: { _, send in
+                await send(.lastSeenCursorFailed(cursor))
+            }
+        )
     }
 
     private func loadPage(state: inout State, isRefresh: Bool) -> EffectOf<Self> {
