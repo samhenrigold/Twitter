@@ -17,6 +17,8 @@ package struct ComposeFeature {
         /// Tweets saved to finish later.
         @Shared(.drafts) var drafts
         var errorMessage: String?
+        /// The rest of a thread: Tweets posted after the first, each replying to the one before.
+        var followUps: IdentifiedArrayOf<FollowUp> = []
         /// The sheet is on its way out: a second tap on Cancel, while it slides away, would reach a parent that has
         /// already let go of it.
         var isDismissing = false
@@ -24,6 +26,8 @@ package struct ComposeFeature {
         var isShowingDrafts = false
         /// The saved draft being finished, which posting or saving again replaces.
         var loadedDraftID: SavedDraft.ID?
+        /// The last part of the thread Twitter has taken, when a thread stopped partway: the rest reply to it.
+        var postedThreadTweetID: String?
         /// Accounts matching the mention being typed at the end of the text.
         var mentionSuggestions: [User] = []
         var text = ""
@@ -43,6 +47,7 @@ package struct ComposeFeature {
         var canPost: Bool {
             !isPosting && !isDismissing && remainingCharacters >= 0
                 && (hasText || !attachments.isEmpty)
+                && followUps.allSatisfy { $0.isPostable }
         }
 
         /// The handle being typed after an @ at the end of the text, if any ("@poin" gives "poin").
@@ -60,6 +65,17 @@ package struct ComposeFeature {
         }
     }
 
+    /// A Tweet after the first in a thread.
+    package struct FollowUp: Equatable, Identifiable {
+        package let id: UUID
+        var text = ""
+
+        var remainingCharacters: Int { State.characterLimit - text.count }
+        var isPostable: Bool {
+            remainingCharacters >= 0 && !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+    }
+
     /// Something picked to post with the Tweet.
     package struct Attachment: Equatable, Identifiable {
         package let id: UUID
@@ -71,11 +87,13 @@ package struct ComposeFeature {
 
     package enum Action: BindableAction {
         case binding(BindingAction<State>)
+        case addFollowUpButtonTapped
         case cancelButtonTapped
         case confirmation(PresentationAction<Confirmation>)
         case deleteDrafts(IndexSet)
         case draftTapped(SavedDraft)
         case draftsButtonTapped
+        case followUpTextChanged(FollowUp.ID, String)
         /// Media picked from the library, loaded and ready to upload.
         case mediaPicked([MediaUpload])
         case mentionSuggestionTapped(User)
@@ -83,6 +101,9 @@ package struct ComposeFeature {
         case postButtonTapped
         case postResponse(Result<String, any Error>)
         case removeAttachmentButtonTapped(Attachment.ID)
+        case removeFollowUpButtonTapped(FollowUp.ID)
+        /// The first part still to post went up as `id`.
+        case threadPartPosted(id: String)
 
         package enum Confirmation: Equatable {
             case deleteTapped
@@ -215,18 +236,47 @@ package struct ComposeFeature {
                 state.attachments.remove(id: id)
                 return .none
 
+            case .addFollowUpButtonTapped:
+                state.followUps.append(FollowUp(id: uuid()))
+                return .none
+
+            case .followUpTextChanged(let id, let text):
+                state.followUps[id: id]?.text = text
+                return .none
+
+            case .removeFollowUpButtonTapped(let id):
+                state.followUps.remove(id: id)
+                return .none
+
+            case .threadPartPosted(let id):
+                // That part leaves the composer, so a failure later on retries only what's left, replying to it.
+                state.postedThreadTweetID = id
+                state.attachments = []
+                state.draft.quoting = nil
+                state.text = state.followUps.isEmpty ? "" : state.followUps.removeFirst().text
+                return .none
+
             case .postButtonTapped:
                 guard state.canPost else { return .none }
                 state.isPosting = true
                 state.errorMessage = nil
-                let text = state.text
-                let draft = state.draft
+                let texts = [state.text] + state.followUps.map(\.text)
                 let media = state.attachments.map(\.upload)
+                let quoteURL = state.draft.quoting?.url
+                let replyTo = state.postedThreadTweetID ?? state.draft.replyingTo?.id
                 return .run { send in
                     await send(
                         .postResponse(
                             Result {
-                                try await client.post(text, draft.replyingTo?.id, draft.quoting?.url, media)
+                                // Each part replies to the one before it; only the first carries media and a quote.
+                                var previous = replyTo
+                                for (index, text) in texts.enumerated() {
+                                    let id = try await client.post(
+                                        text, previous, index == 0 ? quoteURL : nil, index == 0 ? media : [])
+                                    previous = id
+                                    if index < texts.count - 1 { await send(.threadPartPosted(id: id)) }
+                                }
+                                return previous ?? ""
                             }
                         )
                     )

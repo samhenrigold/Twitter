@@ -44,6 +44,7 @@ package enum TwitterIcon: String, Sendable {
     case personStroke = "person_stroke"
     case pin
     case play
+    case plus
     case quote
     case refresh
     case replyStroke = "reply_stroke"

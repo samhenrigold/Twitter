@@ -6,13 +6,19 @@ import SwiftUI
 import TwitterClient
 import TwitterUI
 
+/// The text field typing goes to: the first Tweet's, or one of the thread's.
+private enum Editor: Hashable {
+    case first
+    case followUp(ComposeFeature.FollowUp.ID)
+}
+
 package struct ComposeView: View {
     @Bindable var store: StoreOf<ComposeFeature>
 
     package init(store: StoreOf<ComposeFeature>) {
         self.store = store
     }
-    @FocusState private var isEditorFocused: Bool
+    @FocusState private var focusedEditor: Editor?
     @State private var pickedItems: [PhotosPickerItem] = []
 
     package var body: some View {
@@ -30,7 +36,7 @@ package struct ComposeView: View {
                     )
                     .font(.title3)
                     .lineLimit(4...)
-                    .focused($isEditorFocused)
+                    .focused($focusedEditor, equals: .first)
 
                     if !store.mentionSuggestions.isEmpty {
                         MentionSuggestions(users: store.mentionSuggestions) {
@@ -47,6 +53,20 @@ package struct ComposeView: View {
                     if let quoting = store.draft.quoting {
                         QuoteCard(tweet: quoting) {}
                             .disabled(true)
+                    }
+
+                    ForEach(store.followUps) { followUp in
+                        FollowUpEditor(
+                            text: Binding {
+                                followUp.text
+                            } set: {
+                                store.send(.followUpTextChanged(followUp.id, $0))
+                            },
+                            remainingCharacters: followUp.remainingCharacters
+                        ) {
+                            store.send(.removeFollowUpButtonTapped(followUp.id), animation: .snappy)
+                        }
+                        .focused($focusedEditor, equals: .followUp(followUp.id))
                     }
 
                     if let errorMessage = store.errorMessage {
@@ -97,6 +117,13 @@ package struct ComposeView: View {
                     }
                     .disabled(store.remainingPhotos == 0 || store.isPosting)
 
+                    Button("Add another Tweet", twitterIcon: .plus) {
+                        store.send(.addFollowUpButtonTapped, animation: .snappy)
+                    }
+                    .labelStyle(.iconOnly)
+                    .frame(width: 32, height: 32)
+                    .disabled(!store.hasText || store.isPosting)
+
                     Spacer()
 
                     CharacterCountGauge(remaining: store.remainingCharacters)
@@ -124,7 +151,11 @@ package struct ComposeView: View {
             pickedItems = []
             store.send(.mediaPicked(uploads), animation: .snappy)
         }
-        .onAppear { isEditorFocused = true }
+        .onAppear { focusedEditor = .first }
+        // A Tweet added to the thread is where typing goes next.
+        .onChange(of: store.followUps.last?.id) { _, newID in
+            if let newID { focusedEditor = .followUp(newID) }
+        }
     }
 }
 
@@ -330,5 +361,39 @@ private struct DraftsList: View {
             }
         }
         .presentationDetents([.medium, .large])
+    }
+}
+
+/// A Tweet after the first in a thread: a thread line down from the one before, its own text and count, and a way
+/// to take it out.
+private struct FollowUpEditor: View {
+    @Binding var text: String
+    let remainingCharacters: Int
+    let remove: () -> Void
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Rectangle()
+                .fill(.separator)
+                .frame(width: 2)
+                .frame(maxHeight: .infinity)
+                .padding(.horizontal, 7)
+
+            VStack(alignment: .trailing, spacing: 4) {
+                TextField("Add another Tweet", text: $text, axis: .vertical)
+                    .font(.title3)
+                    .lineLimit(2...)
+
+                HStack {
+                    Text("\(remainingCharacters)")
+                        .font(.footnote.monospacedDigit())
+                        .foregroundStyle(remainingCharacters < 0 ? .red : .secondary)
+
+                    Button("Remove", twitterIcon: .close, action: remove)
+                        .labelStyle(.iconOnly)
+                        .controlSize(.small)
+                }
+            }
+        }
     }
 }
