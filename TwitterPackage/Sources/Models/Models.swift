@@ -221,3 +221,10 @@ package enum FeedSource: Hashable, Sendable {
     case userPosts(userID: String)
     case userReplies(userID: String)
 }
+
+extension User {
+    /// The profile on the web, for sharing.
+    package var profileURL: URL? {
+        URL(string: "https://x.com/\(screenName)")
+    }
+}

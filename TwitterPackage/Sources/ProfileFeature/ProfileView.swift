@@ -62,6 +62,16 @@ package struct ProfileMenuItems: View {
             store.send(.listsButtonTapped)
         }
 
+        if let url = store.user?.profileURL {
+            ShareLink(item: url) {
+                Label("Share Profile", twitterIcon: .shareStroke)
+            }
+
+            Button("Copy Link to Profile", twitterIcon: .link) {
+                UIPasteboard.general.url = url
+            }
+        }
+
         Divider()
 
         if store.isViewer {

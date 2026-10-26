@@ -182,6 +182,10 @@ extension MainFeature.Tab {
             if arguments.contains("--compose") {
                 store.send(.home(.composeButtonTapped))
             }
+            // `--compose-reply`: a reply to the first mock post.
+            if arguments.contains("--compose-reply"), let tweet = Tweet.mocks.first {
+                store.send(.home(.root(.feeds(.delegate(.compose(Draft(replyingTo: tweet)))))))
+            }
             // `--open-reply`: a reply's thread, with the conversation it replies to above it.
             if arguments.contains("--open-reply") {
                 store.send(.home(.root(.feeds(.delegate(.open(.thread(.mockReply)))))))
