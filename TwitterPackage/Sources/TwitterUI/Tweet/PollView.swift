@@ -84,7 +84,7 @@ private struct PollChoiceRow: View {
         .background(alignment: .leading) {
             GeometryReader { proxy in
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(hasMostVotes ? AnyShapeStyle(.pollLeader) : AnyShapeStyle(.fill.tertiary))
+                    .fill(hasMostVotes ? AnyShapeStyle(.twitterBlue.tertiary) : AnyShapeStyle(.fill.tertiary))
                     .frame(width: max(proxy.size.width * fraction, 4))
             }
         }

@@ -139,7 +139,7 @@ private struct Banner: View {
 
     var body: some View {
         Rectangle()
-            .fill(.bannerPlaceholder)
+            .fill(.twitterBlue.tertiary)
             .overlay {
                 if let url {
                     RemoteImage(url: url, pointSize: 800) {
