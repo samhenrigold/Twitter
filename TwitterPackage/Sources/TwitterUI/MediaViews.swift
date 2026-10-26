@@ -4,7 +4,6 @@ import Dependencies
 import ImagePipeline
 import Models
 import SwiftUI
-import TwitterUI
 
 package struct MediaGrid: View {
     let media: [Media]

@@ -69,6 +69,8 @@ package final class TabStackController: NSObject {
             [weak self] (controller: ColumnNavigationController, _) in
             self?.columnAvailabilityChanged()
         }
+        // Launched already wide (iPhone Duo open), the size class never changes: the root's first layout says so.
+        root.onLayout = { [weak self] in self?.columnAvailabilityChanged() }
         observation = observe { [weak self] in
             guard let self else { return }
             _ = store.path.ids
@@ -148,7 +150,7 @@ package final class TabStackController: NSObject {
 
 extension TabStackController: SFSafariViewControllerDelegate {
     package nonisolated func safariViewControllerDidFinish(_ controller: SFSafariViewController) {
-        MainActor.assumeIsolated { store.send(.safariDismissed) }
+        MainActor.assumeIsolated { _ = store.send(.safariDismissed) }
     }
 }
 
@@ -159,6 +161,8 @@ private final class ColumnHostingController<Content: View>: UIHostingController<
 {
     /// Called once the navigation controller has removed this column from its stack.
     var onRemoved: (() -> Void)?
+    /// Called on each layout pass, once the column has its traits.
+    var onLayout: (() -> Void)?
     private let chrome: ColumnChrome
     private let stack: StoreOf<TabStack>
 
@@ -196,22 +200,18 @@ private final class ColumnHostingController<Content: View>: UIHostingController<
         // controller's top safe area regardless. So the header goes by where the column really is: just under
         // whatever part of the window's top safe area it actually overlaps (usually none). In portrait the bar sits
         // right at the card's top edge: it gets a little room above and below.
+        // (The horizontal safe area is ignored in SwiftUI, by the column's content: see ColumnScreen.)
         var additional = UIEdgeInsets.zero
         var padding: CGFloat = 0
         if showsColumnBar, let window = view.window {
-            let inherited = UIEdgeInsets(
-                top: view.safeAreaInsets.top - additionalSafeAreaInsets.top,
-                left: view.safeAreaInsets.left - additionalSafeAreaInsets.left,
-                bottom: 0,
-                right: view.safeAreaInsets.right - additionalSafeAreaInsets.right
-            )
+            let inherited = view.safeAreaInsets.top - additionalSafeAreaInsets.top
             let overlap = max(0, window.safeAreaInsets.top - view.convert(view.bounds.origin, to: window).y)
             padding = window.bounds.height > window.bounds.width ? Self.portraitBarPadding : 0
-            additional = UIEdgeInsets(
-                top: overlap + padding - inherited.top, left: -inherited.left, bottom: 0, right: -inherited.right)
+            additional.top = overlap + padding - inherited
         }
         if additionalSafeAreaInsets != additional { additionalSafeAreaInsets = additional }
         if chrome.barPadding != padding { chrome.barPadding = padding }
+        onLayout?()
         super.viewWillLayoutSubviews()
     }
 
@@ -308,6 +308,9 @@ private struct ColumnScreen<Content: View>: View {
             if chrome.showsColumnBar ?? (horizontalSizeClass == .regular) {
                 NavigationStack {
                     screen
+                        // The card is laid out clear of the window's sides (iPhone Duo's vertical bar) but is handed
+                        // their insets anyway: its content keeps plain symmetric margins.
+                        .ignoresSafeArea(.container, edges: .horizontal)
                         // The room below the bar, for the content and its scroll indicator alike.
                         .safeAreaPadding(.top, chrome.barPadding)
                 }

@@ -1,7 +1,6 @@
 import Models
 import Routing
 import SwiftUI
-import TwitterUI
 
 package struct QuoteCard: View {
     let tweet: Tweet

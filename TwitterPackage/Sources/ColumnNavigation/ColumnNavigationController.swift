@@ -72,6 +72,8 @@ package final class ColumnNavigationController: UINavigationController, UINaviga
     private var isPinnedToNewest = true
     /// The hinge moved during a transition; the strip re-pages when it finishes.
     private var needsFoldSettle = false
+    /// The fold the strip was last re-paged for.
+    private var settledFold: ClosedRange<CGFloat>?
     /// Column mode has set things up (cards, a hidden bar) that compact needs torn down.
     private var hasColumnState = false
     /// Between viewWillAppear and viewDidAppear.
@@ -366,7 +368,7 @@ package final class ColumnNavigationController: UINavigationController, UINaviga
     package override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
         // UIKit only forwards to the top column; leading columns leave the screen with us.
-        viewControllers.dropLast().forEach { setAppeared($0, false) }
+        for viewController in viewControllers.dropLast() { setAppeared(viewController, false) }
     }
 
     package override func viewDidLayoutSubviews() {
@@ -428,6 +430,11 @@ package final class ColumnNavigationController: UINavigationController, UINaviga
         // left page) stays there in the new layout.
         let anchor = leadingColumn
         func settle() {
+            // Only for a real change of the fold: the hinge also reports when nothing moved (as an app launches open,
+            // its columns already pinned to the newest), and re-anchoring then would slide the strip off the newest.
+            let fold = activeFold
+            guard fold != settledFold else { return }
+            settledFold = fold
             let layout = makeLayout()
             let previous = offset
             offset = layout.leadingOffset(for: anchor)
@@ -946,7 +953,7 @@ package final class ColumnNavigationController: UINavigationController, UINaviga
         applyDecorations(stack: stack, layout: layout, frames: frames)
         if !isRunningColumnTransition, isAppeared(self) {
             // Leading columns are on screen, so they stay appeared even though UIKit disappeared them when they stopped being top.
-            stack.dropLast().forEach { setAppeared($0, true) }
+            for viewController in stack.dropLast() { setAppeared(viewController, true) }
         }
         overlay?.update(
             frames: frames, stopMarkers: layout.stopOffsets.compactMap { layout.frames(offset: $0).last?.minX },
@@ -1255,7 +1262,9 @@ package final class ColumnNavigationController: UINavigationController, UINaviga
             if let columnView = viewController.viewIfLoaded { ColumnCardView.clearCorners(of: columnView) }
         }
         // Leaving columnar mode: only the top view controller stays on screen.
-        if !cards.isEmpty { viewControllers.dropLast().forEach { setAppeared($0, false) } }
+        if !cards.isEmpty {
+            for viewController in viewControllers.dropLast() { setAppeared(viewController, false) }
+        }
         if let index = pendingBrowseRemoval {
             // Columns flicked off in the overview were on their way out.
             pendingBrowseRemoval = nil
@@ -1266,7 +1275,7 @@ package final class ColumnNavigationController: UINavigationController, UINaviga
             card.removeFromSuperview()
         }
         cards.removeAll()
-        edgeShadows.values.forEach { $0.removeFromSuperview() }
+        for shadow in edgeShadows.values { shadow.removeFromSuperview() }
         edgeShadows.removeAll()
         rootShadow.removeFromSuperview()
         grabber.removeFromSuperview()
@@ -1637,7 +1646,7 @@ package final class ColumnNavigationController: UINavigationController, UINaviga
             fromView.cornerConfiguration = .corners(radius: .fixed(0))
             fromView.transform = .identity
             toDimmer.removeFromSuperview()
-            removedColumns.forEach { setAppeared($0, false) }
+            for column in removedColumns { setAppeared(column, false) }
             isRunningColumnTransition = false
             context.completeTransition(!context.transitionWasCancelled)
             if let leavingHolder {
@@ -1862,7 +1871,7 @@ package final class ColumnNavigationController: UINavigationController, UINaviga
         caughtMotion = isStripMoving || !springs.isEmpty
         caughtBackSwipe = backSpring.isAnimating
         stopStrip()
-        springs.forEach { $0.stop() }
+        for spring in springs { spring.stop() }
         touchDownOffset = offset
         touchDownColumn = column(at: point, in: currentFrames(makeLayout()))
     }
@@ -2283,13 +2292,13 @@ package final class ColumnNavigationController: UINavigationController, UINaviga
         let stack = viewControllers
         guard count < stack.count else { return }
         let removed = stack[count...]
-        removed.dropLast().forEach { setAppeared($0, false) }
-        removed.forEach { $0.viewIfLoaded?.isHidden = true }
+        for viewController in removed.dropLast() { setAppeared(viewController, false) }
+        for viewController in removed { viewController.viewIfLoaded?.isHidden = true }
         let newTop = stack[count - 1]
         // It's appeared as a leading column; UIKit will appear it again as the top.
         setAppeared(newTop, false)
         setViewControllers(Array(stack.prefix(count)), animated: false)
-        removed.forEach { $0.viewIfLoaded?.isHidden = false }
+        for viewController in removed { viewController.viewIfLoaded?.isHidden = false }
         focusedColumn = min(focusedColumn, count - 1)
         view.layoutIfNeeded()
         applyColumnLayout()

@@ -2,7 +2,6 @@ import Dependencies
 import ImagePipeline
 import Models
 import SwiftUI
-import TwitterUI
 
 /// The check next to a verified name: blue for subscribers, gold for businesses, gray for governments.
 package struct VerificationBadgeView: View {

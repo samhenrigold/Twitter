@@ -5,7 +5,6 @@ import SwiftUI
 import Synchronization
 import TwitterClient
 import TwitterDatabase
-import TwitterUI
 import UIKit
 
 extension View {

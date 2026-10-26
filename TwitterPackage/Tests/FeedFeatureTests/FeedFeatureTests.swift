@@ -393,7 +393,7 @@ struct FeedFeatureTests {
     func unbookmarkingInBookmarksTakesThePostOut() async {
         var tweet = Tweet.mocks[0]
         tweet.isBookmarked = true
-        var state = FeedFeature.State(source: .bookmarks, items: [.tweet(FeedTweet(tweet: tweet))])
+        let state = FeedFeature.State(source: .bookmarks, items: [.tweet(FeedTweet(tweet: tweet))])
         state.$engagements.withLock { $0.refresh(from: [tweet]) }
         let store = TestStore(initialState: state) {
             FeedFeature()

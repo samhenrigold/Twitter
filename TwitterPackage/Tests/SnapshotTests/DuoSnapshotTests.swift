@@ -73,7 +73,9 @@ struct DuoSnapshotTests {
         line: UInt = #line,
         column: UInt = #column
     ) async {
-        let window = UIWindow(frame: CGRect(origin: .zero, size: pose.size))
+        // Hostless tests have no scene for `init(windowScene:)`.
+        let window = UIWindow()
+        window.frame = CGRect(origin: .zero, size: pose.size)
         window.overrideUserInterfaceStyle = appearance == .dark ? .dark : .light
         window.rootViewController = UIHostingController(rootView: view)
         window.isHidden = false
