@@ -171,21 +171,18 @@ private struct ProfileHeader: View {
             Banner(url: user.bannerURL)
                 .opensInLightbox(user.bannerMedia, cornerRadius: 0, label: "Header photo")
                 .overlay(alignment: .bottomLeading) {
-                    // The ring is a background around a smaller avatar, in the avatar's own shape, so no
+                    // The ring is a background circle around a smaller avatar, so no
                     // stroke sits over the clipped image's antialiased edge.
                     Avatar(user: user, size: avatarSize - 8)
                         .opensInLightbox(
                             user.avatarMedia,
-                            cornerRadius: Avatar.cornerRadius(size: avatarSize - 8, isSquare: user.hasSquareAvatar),
+                            cornerRadius: (avatarSize - 8) / 2,
                             label: "Profile photo"
                         )
                         .padding(4)
                         .background(
                             .background,
-                            in: RoundedRectangle(
-                                cornerRadius: Avatar.cornerRadius(size: avatarSize - 8, isSquare: user.hasSquareAvatar)
-                                    + 4
-                            )
+                            in: .circle
                         )
                         .alignmentGuide(.bottom) { $0[VerticalAlignment.center] }
                         .padding(.leading, 16)

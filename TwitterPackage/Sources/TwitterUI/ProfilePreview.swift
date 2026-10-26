@@ -81,7 +81,7 @@ package struct ProfilePreviewCard: View {
                 HStack(alignment: .bottom) {
                     avatar
                         .padding(3)
-                        .background(.background, in: avatarShape(size: avatarSize + 6))
+                        .background(.background, in: .circle)
 
                     Spacer(minLength: 0)
 
@@ -116,11 +116,6 @@ package struct ProfilePreviewCard: View {
         .accessibilityElement(children: .combine)
     }
 
-    private func avatarShape(size: CGFloat) -> RoundedRectangle {
-        RoundedRectangle(
-            cornerRadius: Avatar.cornerRadius(size: size, isSquare: user?.hasSquareAvatar == true))
-    }
-
     @ViewBuilder private var avatar: some View {
         if let user {
             Avatar(user: user, size: ProfilePreviewCard.avatarSize)
@@ -128,7 +123,7 @@ package struct ProfilePreviewCard: View {
             Image("AvatarPlaceholder", bundle: .module)
                 .resizable()
                 .frame(width: ProfilePreviewCard.avatarSize, height: ProfilePreviewCard.avatarSize)
-                .clipShape(avatarShape(size: ProfilePreviewCard.avatarSize))
+                .clipShape(.circle)
         }
     }
 

@@ -92,7 +92,6 @@ extension User {
         id: "3",
         name: "Apple",
         screenName: "apple",
-        hasSquareAvatar: true,
         followersCount: 9_800_000,
         isVerified: true,
         verifiedType: "Business"

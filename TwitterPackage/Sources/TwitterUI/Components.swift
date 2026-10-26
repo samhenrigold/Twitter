@@ -5,33 +5,24 @@ import SwiftUI
 
 package struct Avatar: View {
     let url: URL?
-    let isSquare: Bool
     let size: CGFloat
     let decodeSize: CGFloat
 
     /// `decodeSize` is the size the image is decoded at, when it should match a prefetch rather than the drawn size.
     package init(user: User, size: CGFloat, decodeSize: CGFloat? = nil) {
         url = user.avatarURL(forSize: size)
-        isSquare = user.hasSquareAvatar
         self.size = size
         self.decodeSize = decodeSize ?? size
     }
 
-    /// Twitter 4.x's avatars are rounded squares; organizations' a little squarer.
-    package static func cornerRadius(size: CGFloat, isSquare: Bool) -> CGFloat {
-        size * (isSquare ? 0.08 : 0.12)
-    }
-
     package var body: some View {
         // A hairline frame, and `ProfilePlaceholderOverWhite` until the picture arrives.
-        let shape = RoundedRectangle(
-            cornerRadius: Self.cornerRadius(size: size, isSquare: isSquare))
         RemoteImage(url: url, pointSize: decodeSize) {
             Image("AvatarPlaceholder", bundle: .module).resizable()
         }
         .frame(width: size, height: size)
-        .clipShape(shape)
-        .overlay { shape.strokeBorder(.black.opacity(0.12), lineWidth: 0.5) }
+        .clipShape(.circle)
+        .overlay { Circle().strokeBorder(.black.opacity(0.12), lineWidth: 0.5) }
         .accessibilityHidden(true)
     }
 }

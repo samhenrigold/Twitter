@@ -10,7 +10,6 @@ package struct User: Identifiable, Hashable, Codable, Sendable {
     package var location: String = ""
     package var website: String?
     package var websiteURL: URL?
-    package var hasSquareAvatar = false
     package var followersCount: Int = 0
     package var followingCount: Int = 0
     package var postsCount: Int = 0
